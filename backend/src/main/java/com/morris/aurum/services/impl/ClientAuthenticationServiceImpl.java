@@ -1,6 +1,6 @@
 package com.morris.aurum.services.impl;
 
-import com.morris.aurum.models.Client;
+import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.repositories.ClientRepository;
 import com.morris.aurum.services.ClientAuthenticationService;
 import org.slf4j.Logger;

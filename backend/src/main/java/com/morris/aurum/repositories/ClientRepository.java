@@ -1,6 +1,6 @@
 package com.morris.aurum.repositories;
 
-import com.morris.aurum.models.Client;
+import com.morris.aurum.models.clients.Client;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
