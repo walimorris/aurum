@@ -47,15 +47,11 @@ public class SpringMongoConfig {
      */
     @Bean
     public CodecRegistry codecRegistry() {
-        List<Class<?>> classList = List.of(
-                Client.class, CorporateClient.class, HumanClient.class
-        );
-
         return fromRegistries(
                 MongoClientSettings.getDefaultCodecRegistry(),
                 fromProviders(
                         PojoCodecProvider.builder()
-                                .register((PropertyCodecProvider) classList)
+                                .register(Client.class, CorporateClient.class, HumanClient.class)
                                 .build()
                 )
         );
