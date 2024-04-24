@@ -13,6 +13,4 @@ public class CorporateClient extends Client {
     private String businessName;
     private CorporateEntityType corporateEntityType;
     private String ein;
-
-    public CorporateClient() {}
 }

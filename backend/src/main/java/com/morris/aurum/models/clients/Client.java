@@ -32,6 +32,4 @@ public class Client {
     private List<String> accounts;
     private ClientType clientType;
     private ActiveType activeType;
-
-    public Client() {}
 }
