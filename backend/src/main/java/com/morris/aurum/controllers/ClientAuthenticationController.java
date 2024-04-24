@@ -29,6 +29,8 @@ public class ClientAuthenticationController {
     private final ClientService clientService;
 
     private static final int HASH = 17;
+    private static final int BITS = 0xfffffff;
+
 
     @Autowired
     public ClientAuthenticationController(ClientAuthenticationService clientAuthenticationService,
@@ -89,19 +91,23 @@ public class ClientAuthenticationController {
 
     /**
      * The key passed to Hash Function should be unique and immutable. If, for say, an object
-     * changes it will also change the value of the hash (in this case used for clientIds). EINs
-     * are unique identifiers and as such is safe to use. What about for individuals? What's a
-     * unique key we can use here and how do we ALWAYS return positive Hash values?
+     * changes it will also change the value of the hash (in this case used for clientIds).
+     * EINs are unique identifiers and, as such, are safe to use. This function creates a Hash
+     * calculation and passes in unique values to create Ids for Corporate and Individual client.
      *
      * @param clientRequest {@link ClientRequest}
      *
      * @return {@link String} Hash
      */
     private String generateHashId(ClientRequest clientRequest) {
-        // TODO: what if ClientRequest.getEin() or ClientRequest.getUserName() is Null?
-        if (clientRequest.getClientType() == ClientType.CORPORATE) {
-            return String.valueOf(HASH * 31 + clientRequest.getEin().hashCode());
+        int hashCalculation = HASH * 31;
+        if (clientRequest.getClientType() == ClientType.CORPORATE && clientRequest.getEin() == null ||
+                clientRequest.getClientType() == ClientType.INDIVIDUAL && clientRequest.getUserName() == null) {
+            throw new IllegalArgumentException(clientRequest.getClientType() +  " cannot be null.");
         }
-        return String.valueOf(HASH * 31 + clientRequest.getUserName().hashCode());
+        if (clientRequest.getClientType() == ClientType.CORPORATE) {
+            return String.valueOf(hashCalculation + clientRequest.getEin().hashCode() & BITS);
+        }
+        return String.valueOf(hashCalculation + clientRequest.getUserName().hashCode() & BITS);
     }
 }
