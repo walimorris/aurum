@@ -17,7 +17,9 @@ backend/src/main/resources/secrets.properties
 
 ## ninja ##
 *.conf
-*.properties
+application.properties
+secrets.properties
+maven-wrapper.properties
 *.jks
 *.crt
 *.der

@@ -2,6 +2,7 @@ package com.morris.aurum.models.clients;
 
 import com.morris.aurum.models.Address;
 import com.morris.aurum.models.Contact;
+import com.morris.aurum.models.types.ActiveType;
 import com.morris.aurum.models.types.ClientType;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,6 +31,7 @@ public class Client {
     private List<Contact> contacts;
     private List<String> accounts;
     private ClientType clientType;
+    private ActiveType activeType;
 
     public Client() {}
 }

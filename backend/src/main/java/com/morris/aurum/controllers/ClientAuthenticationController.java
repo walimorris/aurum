@@ -1,11 +1,11 @@
 package com.morris.aurum.controllers;
 
+import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.clients.Client;
-import com.morris.aurum.models.Contact;
-import com.morris.aurum.models.clients.CorporateClient;
-import com.morris.aurum.models.clients.IndividualClient;
-import com.morris.aurum.models.requests.ClientRequest;
+import com.morris.aurum.models.requests.CreateClientRequest;
+import com.morris.aurum.models.types.AccountType;
 import com.morris.aurum.models.types.ClientType;
+import com.morris.aurum.services.AccountService;
 import com.morris.aurum.services.ClientAuthenticationService;
 import com.morris.aurum.services.ClientService;
 import org.slf4j.Logger;
@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Collections;
-import java.util.List;
 
 @RestController
 @RequestMapping("/aurum/api/auth")
@@ -27,17 +26,16 @@ public class ClientAuthenticationController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientAuthenticationController.class);
     private final ClientAuthenticationService clientAuthenticationService;
     private final ClientService clientService;
-
-    private static final int HASH = 17;
-    private static final int BITS = 0xfffffff;
+    private final AccountService accountService;
 
 
     @Autowired
     public ClientAuthenticationController(ClientAuthenticationService clientAuthenticationService,
-                                          ClientService clientService) {
+                                          ClientService clientService, AccountService accountService) {
 
         this.clientAuthenticationService = clientAuthenticationService;
         this.clientService = clientService;
+        this.accountService = accountService;
     }
 
     @PostMapping("/signin")
@@ -47,67 +45,21 @@ public class ClientAuthenticationController {
                 .body(clientAuthenticationService.getClientInfo(userName, password));
     }
 
-    @PostMapping("/addBusinessClient")
-    public ResponseEntity<Client> addClient(ClientRequest clientRequest) {
-        String clientHashId = generateHashId(clientRequest);
-        List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
-
+    @PostMapping("/addClient")
+    public ResponseEntity<Client> addClient(CreateClientRequest clientRequest) {
         Client client;
-
         if (clientRequest.getClientType() == ClientType.CORPORATE) {
-            // build the CorporateClient from requests
-            client = CorporateClient.builder()
-                    .userName(clientRequest.getUserName())
-                    .password(clientRequest.getPassword()) // TODO: field level encryption
-                    .clientId(clientHashId)
-                    .emailAddress(clientRequest.getEmailAddress())
-                    .address(clientRequest.getAddress())
-                    .contacts(contacts)
-                    .clientType(clientRequest.getClientType())
-                    .businessName(clientRequest.getBusinessName())
-                    .corporateEntityType(clientRequest.getCorporateEntityType())
-                    .ein(clientRequest.getEin())
-                    .build();
+            client = clientService.createNewCorporateClient(clientRequest);
         } else {
-            // build IndividualClient
-            client = IndividualClient.builder()
-                    .userName(clientRequest.getUserName())
-                    .password(clientRequest.getPassword()) // TODO: field level encryption
-                    .clientId(clientHashId)
-                    .emailAddress(clientRequest.getEmailAddress())
-                    .address(clientRequest.getAddress())
-                    .contacts(contacts)
-                    .clientType(clientRequest.getClientType())
-                    .firstName(clientRequest.getFirstName())
-                    .lastName(clientRequest.getLastName())
-                    .dateOfBirth(clientRequest.getDateOfBirth())
-                    .build();
+            client = clientService.createNewIndividualClient(clientRequest);
         }
+        // Create initial account and set the account number
+        Account initialAccount = clientRequest.getAccountType() == AccountType.CHECKING ?
+                accountService.createCheckingAccount(client) : accountService.createSavingAccount(client);
+        client.setAccounts(Collections.singletonList(initialAccount.getAccountNumber()));
         Client clientResult = clientService.insertClient(client);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(clientResult);
-    }
-
-    /**
-     * The key passed to Hash Function should be unique and immutable. If, for say, an object
-     * changes it will also change the value of the hash (in this case used for clientIds).
-     * EINs are unique identifiers and, as such, are safe to use. This function creates a Hash
-     * calculation and passes in unique values to create Ids for Corporate and Individual client.
-     *
-     * @param clientRequest {@link ClientRequest}
-     *
-     * @return {@link String} Hash
-     */
-    private String generateHashId(ClientRequest clientRequest) {
-        int hashCalculation = HASH * 31;
-        if (clientRequest.getClientType() == ClientType.CORPORATE && clientRequest.getEin() == null ||
-                clientRequest.getClientType() == ClientType.INDIVIDUAL && clientRequest.getUserName() == null) {
-            throw new IllegalArgumentException(clientRequest.getClientType() +  " cannot be null.");
-        }
-        if (clientRequest.getClientType() == ClientType.CORPORATE) {
-            return String.valueOf(hashCalculation + clientRequest.getEin().hashCode() & BITS);
-        }
-        return String.valueOf(hashCalculation + clientRequest.getUserName().hashCode() & BITS);
     }
 }

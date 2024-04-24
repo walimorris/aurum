@@ -1,4 +1,4 @@
-package com.morris.aurum.models;
+package com.morris.aurum.models.cards;
 
 import lombok.Getter;
 import lombok.Setter;
