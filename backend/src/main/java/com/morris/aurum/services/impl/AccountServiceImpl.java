@@ -1,9 +1,9 @@
 package com.morris.aurum.services.impl;
 
-import com.morris.aurum.configurations.CountryCodeProperties;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
 import com.morris.aurum.models.clients.Client;
+import com.morris.aurum.models.properties.CountryCodeCurrencyProperties;
 import com.morris.aurum.models.types.AccountType;
 import com.morris.aurum.models.types.ActiveType;
 import com.morris.aurum.models.types.CurrencyType;
@@ -25,13 +25,13 @@ public class AccountServiceImpl implements AccountService {
     private static final Logger LOGGER = LoggerFactory.getLogger(AccountServiceImpl.class);
 
     private final AccountRepository accountRepository;
-    private final CountryCodeProperties countryCodeProperties;
+    private final CountryCodeCurrencyProperties countryCodeProperties;
     private final BankingUtil bankingUtil;
 
     private static final String ROUTING_NUMBER = "223332111";
 
     @Autowired
-    public AccountServiceImpl(AccountRepository accountRepository, CountryCodeProperties countryCodeProperties,
+    public AccountServiceImpl(AccountRepository accountRepository, CountryCodeCurrencyProperties countryCodeProperties,
                               BankingUtil bankingUtil) {
 
         this.accountRepository = accountRepository;
@@ -75,7 +75,6 @@ public class AccountServiceImpl implements AccountService {
     }
 
     private CurrencyType matchCountryCodeToCurrency(Client client) {
-        String clientCountryCode = client.getAddress().getCountryCode().toString();
-        return CurrencyType.valueOf(countryCodeProperties.getCountryCodeMap().get(clientCountryCode));
+        return countryCodeProperties.codes().get(client.getAddress().getCountryCode());
     }
 }
