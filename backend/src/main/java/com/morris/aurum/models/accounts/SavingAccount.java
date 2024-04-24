@@ -7,5 +7,5 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @Setter
 @SuperBuilder
-public class Account {
+public class SavingAccount extends Account {
 }
