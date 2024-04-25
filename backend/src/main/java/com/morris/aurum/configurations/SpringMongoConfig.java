@@ -1,6 +1,9 @@
 package com.morris.aurum.configurations;
 
 import com.mongodb.MongoClientSettings;
+import com.morris.aurum.models.Address;
+import com.morris.aurum.models.Contact;
+import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.CorporateClient;
 import com.morris.aurum.models.clients.IndividualClient;
@@ -46,8 +49,8 @@ public class SpringMongoConfig {
                 MongoClientSettings.getDefaultCodecRegistry(),
                 fromProviders(
                         PojoCodecProvider.builder()
-                                .register(Client.class, CorporateClient.class, IndividualClient.class)
-                                .build()
+                                .register(Client.class, CorporateClient.class, IndividualClient.class,
+                                        Account.class, Address.class, Contact.class).build()
                 )
         );
     }

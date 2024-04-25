@@ -1,5 +1,6 @@
 package com.morris.aurum.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.services.AccountService;
@@ -8,10 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -48,5 +48,21 @@ public class AccountController {
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(deletedAccountResult);
+    }
+
+    @GetMapping("/getAccount")
+    public ResponseEntity<Account> getAccount(@RequestParam String accountNumber) {
+        Account accountResult = accountService.getAccount(accountNumber);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(accountResult);
+    }
+
+    @GetMapping("/getAllAccounts")
+    public ResponseEntity<List<Account>> getAllAccounts(@RequestParam String clientId) throws JsonProcessingException {
+        List<Account> accounts = accountService.getAllAccountsForClient(clientId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(accounts);
     }
 }

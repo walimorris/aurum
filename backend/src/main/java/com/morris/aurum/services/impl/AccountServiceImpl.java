@@ -1,9 +1,13 @@
 package com.morris.aurum.services.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.ClientSessionOptions;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.TransactionBody;
+import com.mongodb.client.model.UnwindOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
@@ -20,6 +24,7 @@ import com.morris.aurum.repositories.AccountRepository;
 import com.morris.aurum.services.AccountService;
 import com.morris.aurum.utils.BankingUtil;
 import org.bson.BsonDateTime;
+import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.conversions.Bson;
 import org.slf4j.Logger;
@@ -29,12 +34,12 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
+import static com.mongodb.client.model.Aggregates.*;
 import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Projections.*;
+import static java.util.Arrays.asList;
 
 @Service
 public class AccountServiceImpl implements AccountService {
@@ -66,7 +71,8 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public Account createCheckingAccount(Client client) {
         CurrencyType currencyType = matchCountryCodeToCurrency(client);
-        String accountNumber = bankingUtil.generateHashId(client.getClientId() + client.getAccounts().size());
+        int accountSize = client.getAccounts() == null ? 0 : client.getAccounts().size();
+        String accountNumber = bankingUtil.generateHashId(client.getClientId() + accountSize);
         BsonDateTime now = new BsonDateTime(new Date().getTime());
 
         CheckingAccount checkingAccount = CheckingAccount.builder()
@@ -101,6 +107,68 @@ public class AccountServiceImpl implements AccountService {
                 .interestRate(SAVINGS_INTEREST_RATE)
                 .build();
         return accountRepository.insert(savingAccount);
+    }
+
+    @Override
+    public Account getAccount(String accountNumber) {
+        return accountRepository.findByAccountNumber(accountNumber);
+    }
+
+    @Override
+    public List<Account> getAllAccountsForClient(String clientId) throws JsonProcessingException {
+        MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
+        MongoCollection<Document> clientCollection = db.getCollection(CLIENT_COLLECTION);
+
+        /**
+         * Match: Filters the documents in the clients collection by clientId.
+         *
+         * Lookup: Joins the filtered documents with the accounts collection
+         * based on the accounts field in the client documents and the accountNumber
+         * field in the accounts' collection.
+         *
+         * Unwind: Deconstructs the accounts array to output one document for each
+         * element of the array.
+         *
+         * Project: Reshapes the output to include only the accountNumber field.
+         *
+         * The result of the aggregation is a list of documents, each containing
+         * the accountNumber field from the accounts collection associated with the
+         * specified client ID. The results will ensure that we can pull the actual
+         * Account object will all fields.
+         */
+        Bson match = match(eq("clientId", clientId));
+        Bson lookup = lookup("accounts", "accounts", "accountNumber", "accounts");
+        Bson unwind = unwind("$accounts", new UnwindOptions().preserveNullAndEmptyArrays(true));
+        List<Bson> pipeline = asList(match, lookup, unwind,
+                project(fields(excludeId(),
+                        include("clientId"),
+                        include("firstName"),
+                        include("lastName"),
+                        include("emailAddress"),
+                        include("address"),
+                        include("contacts"),
+                        include("accounts"),
+                        include("clientType"),
+                        include("activeType"),
+                        computed("accountNumber", "$accounts.accountNumber"))));
+
+        List<Document> clientResultsWithAccountsList = clientCollection.aggregate(pipeline)
+                .into(new ArrayList<>());
+
+        if (!clientResultsWithAccountsList.isEmpty()) {
+            Document result = (Document) clientResultsWithAccountsList.get(0).get("accounts");
+            if (result != null) {
+                ObjectMapper objectMapper = new ObjectMapper();
+                try {
+                    Account accounts = objectMapper.readValue(result.toJson(), new TypeReference<>() {});
+                    LOGGER.info("accounts: " + accounts);
+                    return List.of(accounts);
+                } catch (Exception e) {
+                    LOGGER.error("Error converting accounts: " + e.getMessage());
+                }
+            }
+        }
+        return new ArrayList<>();
     }
 
     @Override

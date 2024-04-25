@@ -63,7 +63,7 @@ public class ClientServiceImpl implements ClientService {
                 .address(clientRequest.getAddress())
                 .contacts(contacts)
                 .clientType(clientRequest.getClientType())
-                .activeType(ActiveType.INACTIVE)
+                .activeType(ActiveType.ACTIVE)
                 .firstName(clientRequest.getFirstName())
                 .lastName(clientRequest.getLastName())
                 .dateOfBirth(clientRequest.getDateOfBirth())
