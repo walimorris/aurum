@@ -120,6 +120,7 @@ public class AccountServiceImpl implements AccountService {
         MongoCollection<Document> clientCollection = db.getCollection(CLIENT_COLLECTION);
 
         /**
+         * TODO: Update to create a type reference to hold a list of Accounts
          * Match: Filters the documents in the clients collection by clientId.
          *
          * Lookup: Joins the filtered documents with the accounts collection
