@@ -3,6 +3,8 @@ package com.morris.aurum.services;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.clients.Client;
 
+import java.util.Map;
+
 public interface AccountService {
 
     /**
@@ -22,18 +24,12 @@ public interface AccountService {
     Account createCheckingAccount(Client client);
 
     /**
-     * Delete Account from {@link Client}.
+     * Delete Account by client and account number.
      *
      * @param client {@link Client}
-     * @return {@link Account}
-     */
-    Account deleteAccount(Client client);
-
-    /**
-     * Delete Account from account number.
-     *
      * @param accountNumber {@link String}
+     *
      * @return {@link Account}
      */
-    Account deleteAccount(String accountNumber);
+    Map<String, Object> deleteAccount(Client client, String accountNumber);
 }
