@@ -21,6 +21,7 @@ import com.morris.aurum.models.types.AccountType;
 import com.morris.aurum.models.types.ActiveType;
 import com.morris.aurum.models.types.CurrencyType;
 import com.morris.aurum.repositories.AccountRepository;
+import com.morris.aurum.repositories.ClientRepository;
 import com.morris.aurum.services.AccountService;
 import com.morris.aurum.utils.BankingUtil;
 import org.bson.BsonDateTime;
@@ -47,6 +48,7 @@ public class AccountServiceImpl implements AccountService {
 
     private final MongoTemplate mongoTemplate;
     private final AccountRepository accountRepository;
+    private final ClientRepository clientRepository;
     private final CountryCodeCurrencyProperties countryCodeProperties;
     private final BankingUtil bankingUtil;
     private final CodecRegistry codecRegistry;
@@ -59,9 +61,11 @@ public class AccountServiceImpl implements AccountService {
 
     @Autowired
     public AccountServiceImpl(AccountRepository accountRepository, CountryCodeCurrencyProperties countryCodeProperties,
-                              BankingUtil bankingUtil, MongoTemplate mongoTemplate, CodecRegistry codecRegistry) {
+                              BankingUtil bankingUtil, MongoTemplate mongoTemplate, CodecRegistry codecRegistry,
+                              ClientRepository clientRepository) {
 
         this.accountRepository = accountRepository;
+        this.clientRepository = clientRepository;
         this.countryCodeProperties = countryCodeProperties;
         this.bankingUtil = bankingUtil;
         this.mongoTemplate = mongoTemplate;
@@ -70,6 +74,29 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public Account createCheckingAccount(Client client) {
+        if (client.getClientId() != null) {
+            if (client.getAddress() == null) {
+                // We use synchronize here to ensure that clientRepository can not be used and
+                // ensuring thread safety, and no modifications on repository concurrently.
+                // This reduces the chance of race conditions and preventing other threads
+                // from modifying the repository.
+
+                synchronized (clientRepository) {
+                    String clientId = client.getClientId();
+                    try {
+                        client = clientRepository.findByClientId(clientId);
+                        while (client == null) {
+                            clientRepository.wait();
+                            client = clientRepository.findByClientId(clientId);
+                        }
+                    } catch (InterruptedException e) {
+                        LOGGER.error("Error locking on client fetch: {}", e.getMessage());
+                        return null;
+                    }
+                }
+            }
+        }
+
         CurrencyType currencyType = matchCountryCodeToCurrency(client);
         int accountSize = client.getAccounts() == null ? 0 : client.getAccounts().size();
         String accountNumber = bankingUtil.generateHashId(client.getClientId() + accountSize);
