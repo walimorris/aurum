@@ -10,6 +10,7 @@ import com.morris.aurum.models.cards.DebitCard;
 import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.CorporateClient;
 import com.morris.aurum.models.clients.IndividualClient;
+import com.morris.aurum.models.transactions.Transaction;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.springframework.context.annotation.Bean;
@@ -54,7 +55,7 @@ public class SpringMongoConfig {
                         PojoCodecProvider.builder()
                                 .register(Client.class, CorporateClient.class, IndividualClient.class,
                                         Account.class, Address.class, Contact.class, CheckingAccount.class,
-                                        SavingAccount.class, DebitCard.class).build()
+                                        SavingAccount.class, DebitCard.class, Transaction.class).build()
                 )
         );
     }

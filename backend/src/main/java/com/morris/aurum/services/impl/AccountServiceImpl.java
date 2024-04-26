@@ -25,7 +25,6 @@ import com.morris.aurum.repositories.AccountRepository;
 import com.morris.aurum.repositories.ClientRepository;
 import com.morris.aurum.services.AccountService;
 import com.morris.aurum.utils.BankingUtil;
-import org.bson.BsonDateTime;
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.conversions.Bson;
@@ -36,7 +35,10 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static com.mongodb.client.model.Aggregates.*;
 import static com.mongodb.client.model.Filters.eq;
@@ -189,7 +191,6 @@ public class AccountServiceImpl implements AccountService {
             CurrencyType currencyType = matchCountryCodeToCurrency(updatedClient);
             int accountSize = getAccountSize(updatedClient);
             String accountNumber = bankingUtil.generateHashId(updatedClient.getClientId() + accountSize);
-            BsonDateTime now = new BsonDateTime(new Date().getTime());
 
             Account account;
             if (accountType == AccountType.CHECKING) {
@@ -201,7 +202,7 @@ public class AccountServiceImpl implements AccountService {
                         .routingNumber(ROUTING_NUMBER)
                         .activeType(ActiveType.ACTIVE)
                         .transactions(new ArrayList<>())
-                        .creationDate(now)
+                        .creationDate(bankingUtil.now())
                         .debitCards(new ArrayList<>())
                         .build();
             } else {
@@ -213,7 +214,7 @@ public class AccountServiceImpl implements AccountService {
                         .routingNumber(ROUTING_NUMBER)
                         .activeType(ActiveType.ACTIVE)
                         .transactions(new ArrayList<>())
-                        .creationDate(now)
+                        .creationDate(bankingUtil.now())
                         .interestRate(SAVINGS_INTEREST_RATE)
                         .build();
             }

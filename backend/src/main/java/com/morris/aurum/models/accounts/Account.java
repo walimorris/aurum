@@ -2,9 +2,7 @@ package com.morris.aurum.models.accounts;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.morris.aurum.models.transactions.Transaction;
 import com.morris.aurum.models.types.AccountType;
 import com.morris.aurum.models.types.ActiveType;
 import com.morris.aurum.models.types.CurrencyType;
@@ -17,7 +15,6 @@ import org.bson.codecs.pojo.annotations.BsonId;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -28,6 +25,15 @@ import java.util.List;
 @SuperBuilder
 @Document("accounts")
 @JsonIgnoreProperties(ignoreUnknown = true)
+/**
+ * Accounts Schema uses the subset pattern - in the subset pattern we are storing the
+ * 10 most recent transactions in the account. Older transactions will
+ * be stored in the transactions' collection. In a real situation, a bank account may
+ * need to store more than 10 transactions. In general, the subset pattern will improve
+ * performance, given that recent transactions should be immediately available to clients
+ * when they open their account information. With a subset of transactions embedded in
+ * Accounts, we can gain a performance enhancement.
+ */
 public class Account {
 
     @Id
@@ -40,7 +46,7 @@ public class Account {
     private String accountNumber;
     private String routingNumber;
     private ActiveType activeType;
-    private List<String> transactions;
+    private List<Transaction> transactions;
 
     @JsonIgnore
     private BsonDateTime creationDate;

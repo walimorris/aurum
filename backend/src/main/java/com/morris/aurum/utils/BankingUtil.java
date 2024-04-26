@@ -1,8 +1,11 @@
 package com.morris.aurum.utils;
 
+import org.bson.BsonDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+
+import java.util.Date;
 
 @Component("bankingUtil")
 public class BankingUtil {
@@ -23,5 +26,9 @@ public class BankingUtil {
      */
     public String generateHashId(String v) {
         return String.valueOf(HASH * 31 + v.hashCode() & BITS);
+    }
+
+    public BsonDateTime now() {
+        return new BsonDateTime(new Date().getTime());
     }
 }

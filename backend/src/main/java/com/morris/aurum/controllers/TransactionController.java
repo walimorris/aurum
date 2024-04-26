@@ -29,6 +29,21 @@ public class TransactionController {
         return null;
     }
 
+    @GetMapping("/recentDepositsForAccount")
+    public ResponseEntity<List<Transaction>> getRecentDepositTransactions(@RequestParam Account accountId) {
+        return null;
+    }
+
+    @GetMapping("/recentWithdrawsForAccount")
+    public ResponseEntity<List<Transaction>> getRecentWithdrawTransactions(@RequestParam Account accountId) {
+        return null;
+    }
+
+    @GetMapping("/recentTransfersForAccount")
+    public ResponseEntity<List<Transaction>> getRecentTransferTransactions(@RequestParam Account accountId) {
+        return null;
+    }
+
     @GetMapping("/allTransactionsForClient")
     public ResponseEntity<List<Transaction>> getAllAccountTransactionsForClient(@RequestParam Client client) {
         return null;
