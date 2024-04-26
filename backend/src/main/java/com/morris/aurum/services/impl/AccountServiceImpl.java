@@ -52,8 +52,6 @@ public class AccountServiceImpl implements AccountService {
     private final CountryCodeCurrencyProperties countryCodeProperties;
     private final BankingUtil bankingUtil;
     private final CodecRegistry codecRegistry;
-
-    private static final String DATABASE = "aurum_bank";
     private static final String CLIENT_COLLECTION = "clients";
     private static final String ACCOUNT_COLLECTION = "accounts";
     private static final String ROUTING_NUMBER = "223332111";
@@ -74,66 +72,81 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public Account createCheckingAccount(Client client) {
-        if (client.getClientId() != null) {
-            if (client.getAddress() == null) {
-                // We use synchronize here to ensure that clientRepository can not be used and
-                // ensuring thread safety, and no modifications on repository concurrently.
-                // This reduces the chance of race conditions and preventing other threads
-                // from modifying the repository.
+        Client updatedClient = fetchClientWithAddress(client);
 
-                synchronized (clientRepository) {
-                    String clientId = client.getClientId();
-                    try {
-                        client = clientRepository.findByClientId(clientId);
-                        while (client == null) {
-                            clientRepository.wait();
-                            client = clientRepository.findByClientId(clientId);
-                        }
-                    } catch (InterruptedException e) {
-                        LOGGER.error("Error locking on client fetch: {}", e.getMessage());
-                        return null;
-                    }
-                }
-            }
+        if (updatedClient != null) {
+            CurrencyType currencyType = matchCountryCodeToCurrency(updatedClient);
+            int accountSize = getAccountSize(updatedClient);
+            String accountNumber = bankingUtil.generateHashId(updatedClient.getClientId() + accountSize);
+            BsonDateTime now = new BsonDateTime(new Date().getTime());
+
+            CheckingAccount checkingAccount = CheckingAccount.builder()
+                    .currencyType(currencyType)
+                    .balance(BigDecimal.ZERO)
+                    .accountType(AccountType.CHECKING)
+                    .accountNumber(accountNumber)
+                    .routingNumber(ROUTING_NUMBER)
+                    .activeType(ActiveType.ACTIVE)
+                    .transactions(new ArrayList<>())
+                    .creationDate(now)
+                    .debitCards(new ArrayList<>())
+                    .build();
+            return accountRepository.insert(checkingAccount);
         }
-
-        CurrencyType currencyType = matchCountryCodeToCurrency(client);
-        int accountSize = client.getAccounts() == null ? 0 : client.getAccounts().size();
-        String accountNumber = bankingUtil.generateHashId(client.getClientId() + accountSize);
-        BsonDateTime now = new BsonDateTime(new Date().getTime());
-
-        CheckingAccount checkingAccount = CheckingAccount.builder()
-                .currencyType(currencyType)
-                .balance(BigDecimal.ZERO)
-                .accountType(AccountType.CHECKING)
-                .accountNumber(accountNumber)
-                .routingNumber(ROUTING_NUMBER)
-                .activeType(ActiveType.ACTIVE)
-                .transactions(new ArrayList<>())
-                .creationDate(now)
-                .debitCards(new ArrayList<>())
-                .build();
-        return accountRepository.insert(checkingAccount);
+        return null;
     }
 
     @Override
     public Account createSavingAccount(Client client) {
-        CurrencyType currencyType = matchCountryCodeToCurrency(client);
-        String accountNumber = bankingUtil.generateHashId(client.getClientId() + client.getAccounts().size());
-        BsonDateTime now = new BsonDateTime(new Date().getTime());
+        Client updatedClient = fetchClientWithAddress(client);
 
-        SavingAccount savingAccount = SavingAccount.builder()
-                .currencyType(currencyType)
-                .balance(BigDecimal.ZERO)
-                .accountType(AccountType.SAVING)
-                .accountNumber(accountNumber)
-                .routingNumber(ROUTING_NUMBER)
-                .activeType(ActiveType.ACTIVE)
-                .transactions(new ArrayList<>())
-                .creationDate(now)
-                .interestRate(SAVINGS_INTEREST_RATE)
-                .build();
-        return accountRepository.insert(savingAccount);
+        if (updatedClient != null) {
+            CurrencyType currencyType = matchCountryCodeToCurrency(updatedClient);
+            int accountSize = getAccountSize(updatedClient);
+            String accountNumber = bankingUtil.generateHashId(updatedClient.getClientId() + accountSize);
+            BsonDateTime now = new BsonDateTime(new Date().getTime());
+
+            SavingAccount savingAccount = SavingAccount.builder()
+                    .currencyType(currencyType)
+                    .balance(BigDecimal.ZERO)
+                    .accountType(AccountType.SAVING)
+                    .accountNumber(accountNumber)
+                    .routingNumber(ROUTING_NUMBER)
+                    .activeType(ActiveType.ACTIVE)
+                    .transactions(new ArrayList<>())
+                    .creationDate(now)
+                    .interestRate(SAVINGS_INTEREST_RATE)
+                    .build();
+            return accountRepository.insert(savingAccount);
+        }
+        return null;
+    }
+
+    private int getAccountSize(Client client) {
+        if (client.getAccounts() == null) {
+            return 0;
+        } else {
+            return client.getAccounts().size() + 1;
+        }
+    }
+
+    private Client fetchClientWithAddress(Client client) {
+        if (client.getClientId() != null && client.getAddress() == null) {
+            synchronized (clientRepository) {
+                String clientId = client.getClientId();
+                try {
+                    client = clientRepository.findByClientId(clientId);
+                    while (client == null || client.getAddress() == null) {
+                        clientRepository.wait();
+                        client = clientRepository.findByClientId(clientId);
+                    }
+                } catch (InterruptedException e) {
+                    LOGGER.error("Error locking on client fetch: {}", e.getMessage());
+                    return null;
+                }
+            }
+        }
+        return client;
     }
 
     @Override
