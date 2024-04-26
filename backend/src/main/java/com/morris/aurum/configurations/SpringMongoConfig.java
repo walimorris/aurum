@@ -4,6 +4,9 @@ import com.mongodb.MongoClientSettings;
 import com.morris.aurum.models.Address;
 import com.morris.aurum.models.Contact;
 import com.morris.aurum.models.accounts.Account;
+import com.morris.aurum.models.accounts.CheckingAccount;
+import com.morris.aurum.models.accounts.SavingAccount;
+import com.morris.aurum.models.cards.DebitCard;
 import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.CorporateClient;
 import com.morris.aurum.models.clients.IndividualClient;
@@ -50,7 +53,8 @@ public class SpringMongoConfig {
                 fromProviders(
                         PojoCodecProvider.builder()
                                 .register(Client.class, CorporateClient.class, IndividualClient.class,
-                                        Account.class, Address.class, Contact.class).build()
+                                        Account.class, Address.class, Contact.class, CheckingAccount.class,
+                                        SavingAccount.class, DebitCard.class).build()
                 )
         );
     }

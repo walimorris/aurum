@@ -10,6 +10,7 @@ import com.mongodb.client.TransactionBody;
 import com.mongodb.client.model.UnwindOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.mongodb.lang.NonNull;
 import com.morris.aurum.models.accounts.Account;
@@ -72,81 +73,12 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public Account createCheckingAccount(Client client) {
-        Client updatedClient = fetchClientWithAddress(client);
-
-        if (updatedClient != null) {
-            CurrencyType currencyType = matchCountryCodeToCurrency(updatedClient);
-            int accountSize = getAccountSize(updatedClient);
-            String accountNumber = bankingUtil.generateHashId(updatedClient.getClientId() + accountSize);
-            BsonDateTime now = new BsonDateTime(new Date().getTime());
-
-            CheckingAccount checkingAccount = CheckingAccount.builder()
-                    .currencyType(currencyType)
-                    .balance(BigDecimal.ZERO)
-                    .accountType(AccountType.CHECKING)
-                    .accountNumber(accountNumber)
-                    .routingNumber(ROUTING_NUMBER)
-                    .activeType(ActiveType.ACTIVE)
-                    .transactions(new ArrayList<>())
-                    .creationDate(now)
-                    .debitCards(new ArrayList<>())
-                    .build();
-            return accountRepository.insert(checkingAccount);
-        }
-        return null;
+        return createAccount(client, AccountType.CHECKING);
     }
 
     @Override
     public Account createSavingAccount(Client client) {
-        Client updatedClient = fetchClientWithAddress(client);
-
-        if (updatedClient != null) {
-            CurrencyType currencyType = matchCountryCodeToCurrency(updatedClient);
-            int accountSize = getAccountSize(updatedClient);
-            String accountNumber = bankingUtil.generateHashId(updatedClient.getClientId() + accountSize);
-            BsonDateTime now = new BsonDateTime(new Date().getTime());
-
-            SavingAccount savingAccount = SavingAccount.builder()
-                    .currencyType(currencyType)
-                    .balance(BigDecimal.ZERO)
-                    .accountType(AccountType.SAVING)
-                    .accountNumber(accountNumber)
-                    .routingNumber(ROUTING_NUMBER)
-                    .activeType(ActiveType.ACTIVE)
-                    .transactions(new ArrayList<>())
-                    .creationDate(now)
-                    .interestRate(SAVINGS_INTEREST_RATE)
-                    .build();
-            return accountRepository.insert(savingAccount);
-        }
-        return null;
-    }
-
-    private int getAccountSize(Client client) {
-        if (client.getAccounts() == null) {
-            return 0;
-        } else {
-            return client.getAccounts().size() + 1;
-        }
-    }
-
-    private Client fetchClientWithAddress(Client client) {
-        if (client.getClientId() != null && client.getAddress() == null) {
-            synchronized (clientRepository) {
-                String clientId = client.getClientId();
-                try {
-                    client = clientRepository.findByClientId(clientId);
-                    while (client == null || client.getAddress() == null) {
-                        clientRepository.wait();
-                        client = clientRepository.findByClientId(clientId);
-                    }
-                } catch (InterruptedException e) {
-                    LOGGER.error("Error locking on client fetch: {}", e.getMessage());
-                    return null;
-                }
-            }
-        }
-        return client;
+        return createAccount(client, AccountType.SAVING);
     }
 
     @Override
@@ -234,7 +166,6 @@ public class AccountServiceImpl implements AccountService {
                 DeleteResult accountDeleteResult = accountCollection.deleteOne(deleteAccount);
                 results.put("update-result", clientUpdateResult);
                 results.put("delete-result", accountDeleteResult);
-
                 return results;
             }
         };
@@ -243,14 +174,109 @@ public class AccountServiceImpl implements AccountService {
             ClientSessionOptions options = ClientSessionOptions.builder()
                     .causallyConsistent(true)
                     .build();
-
             mongoTemplate.getMongoDatabaseFactory().getSession(options)
                     .withTransaction(transactionBody);
-
         } catch (RuntimeException e) {
             LOGGER.error("Transaction Error deleting account '{}': {}", accountNumber, e.getMessage());
         }
         return results;
+    }
+
+    private Account createAccount(Client client, AccountType accountType) {
+        Client updatedClient = fetchClientWithAddress(client);
+
+        if (updatedClient != null) {
+            CurrencyType currencyType = matchCountryCodeToCurrency(updatedClient);
+            int accountSize = getAccountSize(updatedClient);
+            String accountNumber = bankingUtil.generateHashId(updatedClient.getClientId() + accountSize);
+            BsonDateTime now = new BsonDateTime(new Date().getTime());
+
+            Account account;
+            if (accountType == AccountType.CHECKING) {
+                account = CheckingAccount.builder()
+                        .currencyType(currencyType)
+                        .balance(BigDecimal.ZERO)
+                        .accountType(accountType)
+                        .accountNumber(accountNumber)
+                        .routingNumber(ROUTING_NUMBER)
+                        .activeType(ActiveType.ACTIVE)
+                        .transactions(new ArrayList<>())
+                        .creationDate(now)
+                        .debitCards(new ArrayList<>())
+                        .build();
+            } else {
+                account = SavingAccount.builder()
+                        .currencyType(currencyType)
+                        .balance(BigDecimal.ZERO)
+                        .accountType(accountType)
+                        .accountNumber(accountNumber)
+                        .routingNumber(ROUTING_NUMBER)
+                        .activeType(ActiveType.ACTIVE)
+                        .transactions(new ArrayList<>())
+                        .creationDate(now)
+                        .interestRate(SAVINGS_INTEREST_RATE)
+                        .build();
+            }
+
+            // Atomic operation: update client and insert account
+            TransactionBody<Boolean> transactionBody = new TransactionBody<>() {
+                @NonNull
+                @Override
+                public Boolean execute() {
+                    MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
+                    MongoCollection<Client> clientCollection = db.getCollection(CLIENT_COLLECTION, Client.class);
+                    MongoCollection<Account> accountCollection = db.getCollection(ACCOUNT_COLLECTION, Account.class);
+
+                    // Remove account from client entity in ClientCollection
+                    Bson updateClient = eq("clientId", updatedClient.getClientId());
+                    Bson updateAccounts = Updates.push("accounts", accountNumber);
+
+                    // Update the client document and insert account in accounts collection
+                    UpdateResult clientUpdateResult = clientCollection.updateOne(updateClient, updateAccounts);
+                    InsertOneResult insertOneAccountResult = accountCollection.insertOne(account);
+                    return insertOneAccountResult.wasAcknowledged() && clientUpdateResult.wasAcknowledged();
+                }
+            };
+
+            boolean result = false;
+            try {
+                ClientSessionOptions options = ClientSessionOptions.builder().causallyConsistent(true).build();
+                result = mongoTemplate.getMongoDatabaseFactory().getSession(options).withTransaction(transactionBody);
+            } catch (RuntimeException e) {
+                LOGGER.error("Transaction Error creating account '{}': {}", accountNumber, e.getMessage());
+            }
+            if (result) {
+                return account;
+            }
+        }
+        return null;
+    }
+
+    private int getAccountSize(Client client) {
+        if (client.getAccounts() == null) {
+            return 0;
+        } else {
+            return client.getAccounts().size() + 1;
+        }
+    }
+
+    private Client fetchClientWithAddress(Client client) {
+        if (client.getClientId() != null && client.getAddress() == null) {
+            synchronized (clientRepository) {
+                String clientId = client.getClientId();
+                try {
+                    client = clientRepository.findByClientId(clientId);
+                    while (client == null || client.getAddress() == null) {
+                        clientRepository.wait();
+                        client = clientRepository.findByClientId(clientId);
+                    }
+                } catch (InterruptedException e) {
+                    LOGGER.error("Error locking on client fetch: {}", e.getMessage());
+                    return null;
+                }
+            }
+        }
+        return client;
     }
 
     private CurrencyType matchCountryCodeToCurrency(Client client) {
