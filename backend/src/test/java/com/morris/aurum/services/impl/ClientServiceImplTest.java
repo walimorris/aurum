@@ -49,19 +49,6 @@ class ClientServiceImplTest {
         mockBankingUtil = Mockito.mock(BankingUtil.class);
         mockClientRepository = Mockito.mock(ClientRepository.class);
 
-        clientRequest = CreateClientRequest.builder()
-                .clientType(ClientType.INDIVIDUAL)
-                .contact(contact)
-                .accountType(AccountType.CHECKING)
-                .address(address)
-                .emailAddress("rsavage@gmail.com")
-                .firstName("Randy")
-                .lastName("Savage")
-                .dateOfBirth("03/25/1965")
-                .userName("rsavage1")
-                .password("**********")
-                .build();
-
         contact = Contact.builder()
                 .countryCode("+1")
                 .areaCode("206")
@@ -77,6 +64,19 @@ class ClientServiceImplTest {
                 .streetSuffix("BLVD")
                 .streetName("Roosevelt")
                 .zipcode("66543")
+                .build();
+
+        clientRequest = CreateClientRequest.builder()
+                .clientType(ClientType.INDIVIDUAL)
+                .contact(contact)
+                .accountType(AccountType.CHECKING)
+                .address(address)
+                .emailAddress("rsavage@gmail.com")
+                .firstName("Randy")
+                .lastName("Savage")
+                .dateOfBirth("03/25/1965")
+                .userName("rsavage1")
+                .password("**********")
                 .build();
     }
 
