@@ -1,0 +1,27 @@
+{
+  "userName":"rsavage1",
+  "password":"**********",
+  "clientId":"31796311",
+  "emailAddress":"rsavage@gmail.com",
+  "address":{
+    "primaryNumber":"651",
+    "streetName":"Roosevelt",
+    "streetSuffix":"BLVD",
+    "country":"United States of America",
+    "countryCode":"USA",
+    "city":"Los Angeles",
+    "state":"California",
+    "zipcode":"66543"
+  },
+  "contacts":[{
+    "countryCode":"+1",
+    "areaCode":"206",
+    "primaryNumber":"5151"
+  }],
+  "accounts":null,
+  "clientType":"INDIVIDUAL",
+  "activeType":"ACTIVE",
+  "firstName":"Randy",
+  "lastName":"Savage",
+  "dateOfBirth":"03/25/1965"
+}

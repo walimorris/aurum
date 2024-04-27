@@ -1,0 +1,25 @@
+{
+  "firstName":"Randy",
+  "lastName":"Savage",
+  "dateOfBirth":"03/25/1965",
+  "userName":"rsavage1",
+  "clientType":"INDIVIDUAL",
+  "password":"**********",
+  "emailAddress":"rsavage@gmail.com",
+  "accountType":"CHECKING",
+  "contact": {
+    "countryCode":  "+1",
+    "areaCode": "206",
+    "primaryNumber":  "5151"
+  },
+  "address": {
+    "primaryNumber": "651",
+    "streetName": "Roosevelt",
+    "streetSuffix": "BLVD",
+    "country": "United States of America",
+    "countryCode": "USA",
+    "city": "Los Angeles",
+    "state": "California",
+    "zipcode": "66543"
+  }
+}

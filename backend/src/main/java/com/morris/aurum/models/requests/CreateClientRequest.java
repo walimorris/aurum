@@ -5,11 +5,13 @@ import com.morris.aurum.models.Contact;
 import com.morris.aurum.models.types.AccountType;
 import com.morris.aurum.models.types.ClientType;
 import com.morris.aurum.models.types.CorporateEntityType;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class CreateClientRequest {
     private String firstName;
     private String lastName;
