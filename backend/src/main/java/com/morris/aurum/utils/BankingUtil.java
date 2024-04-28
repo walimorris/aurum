@@ -25,6 +25,7 @@ public class BankingUtil {
      * @return {@link String} Hash
      */
     public String generateHashId(String v) {
+        // TODO: Implement org.apache.commons HashCodeBuilder
         return String.valueOf(HASH * 31 + v.hashCode() & BITS);
     }
 
