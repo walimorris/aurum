@@ -1,6 +1,9 @@
 package com.morris.aurum.configurations;
 
+import com.mongodb.Block;
 import com.mongodb.MongoClientSettings;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import com.morris.aurum.models.Address;
 import com.morris.aurum.models.Contact;
 import com.morris.aurum.models.accounts.Account;
@@ -13,18 +16,35 @@ import com.morris.aurum.models.clients.IndividualClient;
 import com.morris.aurum.models.transactions.Transaction;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.mongo.MongoClientSettingsBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
+import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
 import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper;
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
+
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 @Configuration
+@PropertySource("classpath:secrets.properties")
 public class SpringMongoConfig {
+
+    @Value("${secrets.mongodbUri}")
+    private String mongodbUri;
+
+    @Bean
+    public MongoClient mongoClient() {
+        return MongoClients.create(mongodbUri);
+    }
 
     /**
      * By default, MongoDB saves documents with a _class field in the document. This bean
@@ -58,5 +78,16 @@ public class SpringMongoConfig {
                                         SavingAccount.class, DebitCard.class, Transaction.class).build()
                 )
         );
+    }
+
+    /**
+     * Needs to be registered to enable native MDB transactions which are disabled by default.
+     *
+     * @param databaseFactory {@link MongoDatabaseFactory}
+     * @return {@link MongoTransactionManager}
+     */
+    @Bean
+    MongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
+        return new MongoTransactionManager(databaseFactory);
     }
 }

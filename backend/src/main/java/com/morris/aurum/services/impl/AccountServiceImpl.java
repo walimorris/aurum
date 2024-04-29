@@ -3,16 +3,13 @@ package com.morris.aurum.services.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.ClientSessionOptions;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.TransactionBody;
 import com.mongodb.client.model.UnwindOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
-import com.mongodb.lang.NonNull;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
 import com.morris.aurum.models.accounts.SavingAccount;
@@ -31,14 +28,20 @@ import org.bson.conversions.Bson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.SessionSynchronization;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.mongodb.client.model.Aggregates.*;
 import static com.mongodb.client.model.Filters.eq;
@@ -53,6 +56,7 @@ public class AccountServiceImpl implements AccountService {
     private final AccountRepository accountRepository;
     private final ClientRepository clientRepository;
     private final CountryCodeCurrencyProperties countryCodeProperties;
+    private final TransactionManager transactionManager;
     private final BankingUtil bankingUtil;
     private final CodecRegistry codecRegistry;
     private static final String CLIENT_COLLECTION = "clients";
@@ -63,7 +67,7 @@ public class AccountServiceImpl implements AccountService {
     @Autowired
     public AccountServiceImpl(AccountRepository accountRepository, CountryCodeCurrencyProperties countryCodeProperties,
                               BankingUtil bankingUtil, MongoTemplate mongoTemplate, CodecRegistry codecRegistry,
-                              ClientRepository clientRepository) {
+                              ClientRepository clientRepository, TransactionManager transactionManager) {
 
         this.accountRepository = accountRepository;
         this.clientRepository = clientRepository;
@@ -71,14 +75,19 @@ public class AccountServiceImpl implements AccountService {
         this.bankingUtil = bankingUtil;
         this.mongoTemplate = mongoTemplate;
         this.codecRegistry = codecRegistry;
+        this.transactionManager = transactionManager;
+
+        this.mongoTemplate.setSessionSynchronization(SessionSynchronization.ALWAYS);
     }
 
     @Override
+    @Transactional
     public Account createCheckingAccount(Client client) {
         return createAccount(client, AccountType.CHECKING);
     }
 
     @Override
+    @Transactional
     public Account createSavingAccount(Client client) {
         return createAccount(client, AccountType.SAVING);
     }
@@ -146,41 +155,30 @@ public class AccountServiceImpl implements AccountService {
         return new ArrayList<>();
     }
 
+    @Transactional
     @Override
     public Map<String, Object> deleteAccount(Client client, String accountNumber) {
         Map<String, Object> results = new HashMap<>();
-        TransactionBody<Map<String, Object>> transactionBody = new TransactionBody<>() {
-            @NonNull
-            @Override
-            public Map<String, Object> execute() {
-                MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
-                MongoCollection<Client> clientCollection = db.getCollection(CLIENT_COLLECTION, Client.class);
-                MongoCollection<Account> accountCollection = db.getCollection(ACCOUNT_COLLECTION, Account.class);
+        TransactionTemplate transactionTemplate = new TransactionTemplate((PlatformTransactionManager) transactionManager);
 
-                // remove account from client entity in ClientCollection
-                Bson fromClient = eq("clientId", client.getClientId());
-                Bson removeAccount = Updates.pull("accounts", accountNumber);
+        transactionTemplate.execute(status -> {
+            MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
+            MongoCollection<Client> clientCollection = db.getCollection(CLIENT_COLLECTION, Client.class);
+            MongoCollection<Account> accountCollection = db.getCollection(ACCOUNT_COLLECTION, Account.class);
 
-                // delete account from accounts collection
-                Bson deleteAccount = eq("accountNumber", accountNumber);
+            // remove account from client entity in ClientCollection
+            Bson fromClient = eq("clientId", client.getClientId());
+            Bson removeAccount = Updates.pull("accounts", accountNumber);
 
-                UpdateResult clientUpdateResult = clientCollection.updateOne(fromClient, removeAccount);
-                DeleteResult accountDeleteResult = accountCollection.deleteOne(deleteAccount);
-                results.put("update-result", clientUpdateResult);
-                results.put("delete-result", accountDeleteResult);
-                return results;
-            }
-        };
+            // delete account from accounts collection
+            Bson deleteAccount = eq("accountNumber", accountNumber);
 
-        try {
-            ClientSessionOptions options = ClientSessionOptions.builder()
-                    .causallyConsistent(true)
-                    .build();
-            mongoTemplate.getMongoDatabaseFactory().getSession(options)
-                    .withTransaction(transactionBody);
-        } catch (RuntimeException e) {
-            LOGGER.error("Transaction Error deleting account '{}': {}", accountNumber, e.getMessage());
-        }
+            UpdateResult clientUpdateResult = clientCollection.updateOne(fromClient, removeAccount);
+            DeleteResult accountDeleteResult = accountCollection.deleteOne(deleteAccount);
+            results.put("update-result", clientUpdateResult);
+            results.put("delete-result", accountDeleteResult);
+            return results;
+        });
         return results;
     }
 
@@ -219,34 +217,25 @@ public class AccountServiceImpl implements AccountService {
                         .build();
             }
 
+            AtomicBoolean result = new AtomicBoolean(false);
             // Atomic operation: update client and insert account
-            TransactionBody<Boolean> transactionBody = new TransactionBody<>() {
-                @NonNull
-                @Override
-                public Boolean execute() {
-                    MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
-                    MongoCollection<Client> clientCollection = db.getCollection(CLIENT_COLLECTION, Client.class);
-                    MongoCollection<Account> accountCollection = db.getCollection(ACCOUNT_COLLECTION, Account.class);
+            TransactionTemplate transactionTemplate = new TransactionTemplate((PlatformTransactionManager) transactionManager);
+            transactionTemplate.executeWithoutResult(status -> {
+                MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
+                MongoCollection<Client> clientCollection = db.getCollection(CLIENT_COLLECTION, Client.class);
+                MongoCollection<Account> accountCollection = db.getCollection(ACCOUNT_COLLECTION, Account.class);
 
-                    // Remove account from client entity in ClientCollection
-                    Bson updateClient = eq("clientId", updatedClient.getClientId());
-                    Bson updateAccounts = Updates.push("accounts", accountNumber);
+                // Remove account from client entity in ClientCollection
+                Bson updateClient = eq("clientId", updatedClient.getClientId());
+                Bson updateAccounts = Updates.push("accounts", accountNumber);
 
-                    // Update the client document and insert account in accounts collection
-                    UpdateResult clientUpdateResult = clientCollection.updateOne(updateClient, updateAccounts);
-                    InsertOneResult insertOneAccountResult = accountCollection.insertOne(account);
-                    return insertOneAccountResult.wasAcknowledged() && clientUpdateResult.wasAcknowledged();
-                }
-            };
+                // Update the client document and insert account in accounts collection
+                UpdateResult clientUpdateResult = clientCollection.updateOne(updateClient, updateAccounts);
+                InsertOneResult insertOneAccountResult = accountCollection.insertOne(account);
+                result.set(insertOneAccountResult.wasAcknowledged() && clientUpdateResult.wasAcknowledged());
+            });
 
-            boolean result = false;
-            try {
-                ClientSessionOptions options = ClientSessionOptions.builder().causallyConsistent(true).build();
-                result = mongoTemplate.getMongoDatabaseFactory().getSession(options).withTransaction(transactionBody);
-            } catch (RuntimeException e) {
-                LOGGER.error("Transaction Error creating account '{}': {}", accountNumber, e.getMessage());
-            }
-            if (result) {
+            if (result.get()) {
                 return account;
             }
         }
