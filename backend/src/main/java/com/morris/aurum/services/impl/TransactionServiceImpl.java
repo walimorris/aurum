@@ -20,12 +20,18 @@ import org.bson.conversions.Bson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.SessionSynchronization;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.client.model.Updates.*;
@@ -39,19 +45,23 @@ public class TransactionServiceImpl implements TransactionService {
     private final BankingUtil bankingUtil;
     private final MongoTemplate mongoTemplate;
     private final CodecRegistry codecRegistry;
+    private final TransactionManager transactionManager;
 
     private static final String TRANSACTIONS_COLLECTION = "clients";
     private static final String ACCOUNTS_COLLECTION = "accounts";
 
     @Autowired
     public TransactionServiceImpl(TransactionRepository transactionRepository, AccountRepository accountRepository, BankingUtil bankingUtil,
-                                  MongoTemplate mongoTemplate, CodecRegistry codecRegistry) {
+                                  MongoTemplate mongoTemplate, CodecRegistry codecRegistry, TransactionManager transactionManager) {
 
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.bankingUtil = bankingUtil;
         this.mongoTemplate = mongoTemplate;
         this.codecRegistry = codecRegistry;
+        this.transactionManager = transactionManager;
+
+        this.mongoTemplate.setSessionSynchronization(SessionSynchronization.ALWAYS);
     }
 
     @Override
@@ -87,6 +97,7 @@ public class TransactionServiceImpl implements TransactionService {
         return transactionTypeList;
     }
 
+    @Transactional
     @Override
     public Transaction createDeposit(String toAccount, BigDecimal depositAmount) {
         // This operation influences two collection: accounts and transactions. A single document from accounts will
@@ -121,43 +132,33 @@ public class TransactionServiceImpl implements TransactionService {
                     .build();
 
             // let's conduct our transaction
-            TransactionBody<Boolean> transactionBody = new TransactionBody<>() {
+            AtomicBoolean result = new AtomicBoolean(false);
+            TransactionTemplate transactionTemplate = new TransactionTemplate((PlatformTransactionManager) transactionManager);
 
-                @NonNull
-                @Override
-                public Boolean execute() {
-                    MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
-                    MongoCollection<Account> accountsCollection = db.getCollection(ACCOUNTS_COLLECTION, Account.class);
-                    MongoCollection<Transaction> transactionsCollection = db.getCollection(TRANSACTIONS_COLLECTION, Transaction.class);
+            transactionTemplate.executeWithoutResult(transactionStatus -> {
+                MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
+                MongoCollection<Account> accountsCollection = db.getCollection(ACCOUNTS_COLLECTION, Account.class);
+                MongoCollection<Transaction> transactionsCollection = db.getCollection(TRANSACTIONS_COLLECTION, Transaction.class);
 
-                    Bson account = eq("accountNumber", toAccount);
-                    Bson pullTheLastTransaction = pull("transactions", latestTransaction.getTransactionId());
-                    Bson pushTheDepositOnAccount = push("transactions", depositTransaction);
-                    Bson updateAccountBalance = set("balance", updatedBalance);
+                Bson account = eq("accountNumber", toAccount);
+                Bson pullTheLastTransaction = pull("transactions", latestTransaction.getTransactionId());
+                Bson pushTheDepositOnAccount = push("transactions", depositTransaction);
+                Bson updateAccountBalance = set("balance", updatedBalance);
 
-                    // 1. Find the latest transaction document embedded on this account, delete it from this account's
-                    //    transactions array, and insert it into the transaction collection.
-                    UpdateResult updateLatestTransactionOnAccountResult = accountsCollection.updateOne(account, pullTheLastTransaction);
-                    InsertOneResult insertLatestTransactionIntoTransactionCollection = transactionsCollection.insertOne(depositTransaction);
+                // 1. Find the latest transaction document embedded on this account, delete it from this account's
+                //    transactions array, and insert it into the transaction collection.
+                UpdateResult updateLatestTransactionOnAccountResult = accountsCollection.updateOne(account, pullTheLastTransaction);
+                InsertOneResult insertLatestTransactionIntoTransactionCollection = transactionsCollection.insertOne(depositTransaction);
 
-                    // 2. Set an embedded transaction document for this newest transaction onto this account.
-                    UpdateResult updatePushDepositOnAccountResult = accountsCollection.updateOne(account, pushTheDepositOnAccount);
+                // 2. Set an embedded transaction document for this newest transaction onto this account.
+                UpdateResult updatePushDepositOnAccountResult = accountsCollection.updateOne(account, pushTheDepositOnAccount);
 
-                    // 3. Update this account's account balance.
-                    UpdateResult updateAccountBalanceResult = accountsCollection.updateOne(account, updateAccountBalance);
-                    return updateLatestTransactionOnAccountResult.wasAcknowledged() && insertLatestTransactionIntoTransactionCollection.wasAcknowledged()
-                            && updatePushDepositOnAccountResult.wasAcknowledged() && updateAccountBalanceResult.wasAcknowledged();
-                }
-            };
-
-            boolean result = false;
-            try {
-                ClientSessionOptions options = ClientSessionOptions.builder().causallyConsistent(true).build();
-                result = mongoTemplate.getMongoDatabaseFactory().getSession(options).withTransaction(transactionBody);
-            } catch (RuntimeException e) {
-                LOGGER.error("Transaction Error creating new deposit transaction on account '{}': {}", toAccount, e.getMessage());
-            }
-            if (result) {
+                // 3. Update this account's account balance.
+                UpdateResult updateAccountBalanceResult = accountsCollection.updateOne(account, updateAccountBalance);
+                result.set(updateLatestTransactionOnAccountResult.wasAcknowledged() && insertLatestTransactionIntoTransactionCollection.wasAcknowledged()
+                        && updatePushDepositOnAccountResult.wasAcknowledged() && updateAccountBalanceResult.wasAcknowledged());
+            });
+            if (result.get()) {
                 return depositTransaction;
             }
         }
