@@ -1,6 +1,5 @@
 package com.morris.aurum.configurations;
 
-import com.mongodb.Block;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -17,19 +16,14 @@ import com.morris.aurum.models.transactions.Transaction;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.mongo.MongoClientSettingsBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
 import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper;
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
-
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
@@ -82,6 +76,7 @@ public class SpringMongoConfig {
 
     /**
      * Needs to be registered to enable native MDB transactions which are disabled by default.
+     * @see <a href="https://docs.spring.io/spring-data/mongodb/reference/mongodb/client-session-transactions.html">Spring Transactions Docs</a>
      *
      * @param databaseFactory {@link MongoDatabaseFactory}
      * @return {@link MongoTransactionManager}
