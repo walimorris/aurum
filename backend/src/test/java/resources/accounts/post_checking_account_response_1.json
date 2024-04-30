@@ -1,0 +1,16 @@
+{
+  "_id": "66303c5f99a4c425bc637cf4",
+  "debitCards":[],
+  "currencyType":"USD",
+  "balance":"0",
+  "accountType":"CHECKING",
+  "accountNumber":"226987650",
+  "routingNumber":"223332111",
+  "activeType":"ACTIVE",
+  "transactions":[],
+  "creationDate":{
+    "$date":{
+      "$numberLong":"1714100299306"
+    }
+  }
+}

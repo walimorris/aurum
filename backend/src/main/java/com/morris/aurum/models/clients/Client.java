@@ -1,7 +1,5 @@
 package com.morris.aurum.models.clients;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
@@ -13,11 +11,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
-import org.bson.codecs.pojo.annotations.BsonId;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.util.List;
 
@@ -26,12 +22,11 @@ import java.util.List;
 @NoArgsConstructor
 @SuperBuilder
 @Document("clients")
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class Client {
 
     @Id
-    @BsonId
-    @JsonIgnore
+    @JsonProperty("_id")
+    @JsonSerialize(using = ToStringSerializer.class)
     private ObjectId id;
     private String userName;
     private String password;

@@ -10,6 +10,7 @@ import com.morris.aurum.models.requests.CreateClientRequest;
 import com.morris.aurum.models.types.*;
 import com.morris.aurum.repositories.ClientRepository;
 import com.morris.aurum.utils.BankingUtil;
+import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ class ClientServiceImplTest {
     private static Contact contact;
     private static Address address;
     private static CreateClientRequest clientRequest;
-    private static final String INDIVIDUAL_CLIENT_REQUEST_1_JSON = "backend/src/test/java/resources/clients/individual_client_request_1.json";
+    private static final String INDIVIDUAL_CLIENT_REQUEST_1_JSON = "backend/src/test/java/resources/clients/client_request_1.json";
     private static final String INDIVIDUAL_CLIENT_REQUEST_1_RESULT_JSON = "backend/src/test/java/resources/clients/individual_client_request_1_result.json";
     private static final String CORPORATE_CLIENT_REQUEST_1_RESULT_JSON = "backend/src/test/java/resources/clients/corporate_client_request_1_result.json";
 
@@ -100,6 +101,7 @@ class ClientServiceImplTest {
         List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
 
         CorporateClient corporateClient = CorporateClient.builder()
+                .id(new ObjectId("66303c5f99a4c425bc637cf4"))
                 .userName(clientRequest.getUserName())
                 .password(clientRequest.getPassword())
                 .clientId(clientHashId)
@@ -127,6 +129,7 @@ class ClientServiceImplTest {
         List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
 
         IndividualClient individualClient = IndividualClient.builder()
+                .id(new ObjectId("66303c5f99a4c425bc637cf4"))
                 .userName(clientRequest.getUserName())
                 .password(clientRequest.getPassword())
                 .clientId(clientHashId)
@@ -154,6 +157,7 @@ class ClientServiceImplTest {
         List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
 
         IndividualClient individualClient = IndividualClient.builder()
+                .id(new ObjectId("66303c5f99a4c425bc637cf4"))
                 .userName(clientRequest.getUserName())
                 .password(clientRequest.getPassword())
                 .clientId(clientHashId)

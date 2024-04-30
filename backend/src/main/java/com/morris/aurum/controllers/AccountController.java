@@ -3,6 +3,8 @@ package com.morris.aurum.controllers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.clients.Client;
+import com.morris.aurum.models.clients.CorporateClient;
+import com.morris.aurum.models.clients.IndividualClient;
 import com.morris.aurum.services.AccountService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,16 +28,32 @@ public class AccountController {
         this.accountService = accountService;
     }
 
-    @PostMapping("/createCheckingAccount")
-    public ResponseEntity<Account> createCheckingAccount(Client client) {
+    @PostMapping("/individual/createCheckingAccount")
+    public ResponseEntity<Account> createIndividualCheckingAccount(@RequestBody IndividualClient client) {
         Account createdAccountResult = accountService.createCheckingAccount(client);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(createdAccountResult);
     }
 
-    @PostMapping("/createSavingAccount")
-    public ResponseEntity<Account> createSavingAccount(Client client) {
+    @PostMapping("/individual/createSavingAccount")
+    public ResponseEntity<Account> createIndividualSavingAccount(IndividualClient client) {
+        Account createdAccountResult = accountService.createSavingAccount(client);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(createdAccountResult);
+    }
+
+    @PostMapping("/corporation/createCheckingAccount")
+    public ResponseEntity<Account> createCorporateCheckingAccount(@RequestBody CorporateClient client) {
+        Account createdAccountResult = accountService.createCheckingAccount(client);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(createdAccountResult);
+    }
+
+    @PostMapping("/corporation/createSavingAccount")
+    public ResponseEntity<Account> createCorporateSavingAccount(CorporateClient client) {
         Account createdAccountResult = accountService.createSavingAccount(client);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)

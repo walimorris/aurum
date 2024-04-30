@@ -3,6 +3,8 @@ package com.morris.aurum;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.transactions.Transaction;
@@ -22,6 +24,9 @@ public class TestHelper {
     private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private TestHelper() {
+        SimpleModule simpleModule = new SimpleModule();
+        simpleModule.addSerializer(ToStringSerializer.class, new ToStringSerializer());
+        objectMapper.registerModule(simpleModule);
     }
 
     /**

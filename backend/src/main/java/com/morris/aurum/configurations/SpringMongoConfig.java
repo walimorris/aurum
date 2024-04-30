@@ -13,6 +13,7 @@ import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.CorporateClient;
 import com.morris.aurum.models.clients.IndividualClient;
 import com.morris.aurum.models.transactions.Transaction;
+import org.bson.codecs.BsonDateTimeCodec;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -69,7 +70,8 @@ public class SpringMongoConfig {
                         PojoCodecProvider.builder()
                                 .register(Client.class, CorporateClient.class, IndividualClient.class,
                                         Account.class, Address.class, Contact.class, CheckingAccount.class,
-                                        SavingAccount.class, DebitCard.class, Transaction.class).build()
+                                        SavingAccount.class, DebitCard.class, Transaction.class,
+                                        BsonDateTimeCodec.class).build()
                 )
         );
     }
