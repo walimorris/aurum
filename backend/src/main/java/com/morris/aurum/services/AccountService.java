@@ -2,6 +2,8 @@ package com.morris.aurum.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.morris.aurum.models.accounts.Account;
+import com.morris.aurum.models.accounts.CheckingAccount;
+import com.morris.aurum.models.accounts.SavingAccount;
 import com.morris.aurum.models.clients.Client;
 
 import java.util.List;
@@ -15,7 +17,7 @@ public interface AccountService {
      * @param client {@link Client}
      * @return {@link Account}
      */
-    Account createSavingAccount(Client client);
+    SavingAccount createSavingAccount(Client client);
 
     /**
      * Create new CheckingAccount {@link com.morris.aurum.models.accounts.CheckingAccount}
@@ -23,7 +25,7 @@ public interface AccountService {
      * @param client {@link Client}
      * @return {@link Account}
      */
-    Account createCheckingAccount(Client client);
+    CheckingAccount createCheckingAccount(Client client);
 
     /**
      * Delete Account by client and account number.

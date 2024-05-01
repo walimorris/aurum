@@ -8,7 +8,6 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.UnwindOptions;
 import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
-import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
@@ -41,7 +40,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.mongodb.client.model.Aggregates.*;
 import static com.mongodb.client.model.Filters.eq;
@@ -82,14 +80,14 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional
-    public Account createCheckingAccount(Client client) {
-        return createAccount(client, AccountType.CHECKING);
+    public CheckingAccount createCheckingAccount(Client client) {
+        return (CheckingAccount) createAccount(client, AccountType.CHECKING);
     }
 
     @Override
     @Transactional
-    public Account createSavingAccount(Client client) {
-        return createAccount(client, AccountType.SAVING);
+    public SavingAccount createSavingAccount(Client client) {
+        return (SavingAccount) createAccount(client, AccountType.SAVING);
     }
 
     @Override
@@ -217,27 +215,11 @@ public class AccountServiceImpl implements AccountService {
                         .build();
             }
 
-            AtomicBoolean result = new AtomicBoolean(false);
-            // Atomic operation: update client and insert account
-            TransactionTemplate transactionTemplate = new TransactionTemplate((PlatformTransactionManager) transactionManager);
-            transactionTemplate.executeWithoutResult(status -> {
-                MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
-                MongoCollection<Client> clientCollection = db.getCollection(CLIENT_COLLECTION, Client.class);
-                MongoCollection<Account> accountCollection = db.getCollection(ACCOUNT_COLLECTION, Account.class);
+            Account savedAccount = accountRepository.save(account);
+            updatedClient.getAccounts().add(savedAccount.getAccountNumber());
+            clientRepository.save(updatedClient);
 
-                // Remove account from client entity in ClientCollection
-                Bson updateClient = eq("clientId", updatedClient.getClientId());
-                Bson updateAccounts = Updates.push("accounts", accountNumber);
-
-                // Update the client document and insert account in accounts collection
-                UpdateResult clientUpdateResult = clientCollection.updateOne(updateClient, updateAccounts);
-                InsertOneResult insertOneAccountResult = accountCollection.insertOne(account);
-                result.set(insertOneAccountResult.wasAcknowledged() && clientUpdateResult.wasAcknowledged());
-            });
-
-            if (result.get()) {
-                return account;
-            }
+            return savedAccount;
         }
         return null;
     }

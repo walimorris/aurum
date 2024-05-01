@@ -2,6 +2,7 @@ package com.morris.aurum.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.morris.aurum.models.accounts.Account;
+import com.morris.aurum.models.accounts.CheckingAccount;
 import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.CorporateClient;
 import com.morris.aurum.models.clients.IndividualClient;
@@ -29,8 +30,8 @@ public class AccountController {
     }
 
     @PostMapping("/individual/createCheckingAccount")
-    public ResponseEntity<Account> createIndividualCheckingAccount(@RequestBody IndividualClient client) {
-        Account createdAccountResult = accountService.createCheckingAccount(client);
+    public ResponseEntity<CheckingAccount> createIndividualCheckingAccount(@RequestBody IndividualClient client) {
+        CheckingAccount createdAccountResult = accountService.createCheckingAccount(client);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(createdAccountResult);
