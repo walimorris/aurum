@@ -22,17 +22,15 @@ public class ClientServiceImpl implements ClientService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientServiceImpl.class);
 
     private final ClientRepository clientRepository;
-    private final BankingUtil bankingUtil;
 
     @Autowired
-    public ClientServiceImpl(ClientRepository clientRepository, BankingUtil bankingUtil) {
+    public ClientServiceImpl(ClientRepository clientRepository) {
         this.clientRepository = clientRepository;
-        this.bankingUtil = bankingUtil;
     }
 
     @Override
     public Client createNewCorporateClient(CreateClientRequest clientRequest) {
-        String clientHashId = bankingUtil.generateHashId(clientRequest.getEin());
+        String clientHashId = BankingUtil.generateHashId(clientRequest.getEin());
         List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
 
         return CorporateClient.builder()
@@ -52,7 +50,7 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     public Client createNewIndividualClient(CreateClientRequest clientRequest) {
-        String clientHashId = bankingUtil.generateHashId(clientRequest.getUserName());
+        String clientHashId = BankingUtil.generateHashId(clientRequest.getUserName());
         List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
 
         return IndividualClient.builder()

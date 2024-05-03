@@ -6,14 +6,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.UnwindOptions;
-import com.mongodb.client.model.Updates;
-import com.mongodb.client.result.DeleteResult;
-import com.mongodb.client.result.UpdateResult;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
 import com.morris.aurum.models.accounts.SavingAccount;
 import com.morris.aurum.models.clients.Client;
-import com.morris.aurum.models.properties.CountryCodeCurrencyProperties;
 import com.morris.aurum.models.types.AccountType;
 import com.morris.aurum.models.types.ActiveType;
 import com.morris.aurum.models.types.CurrencyType;
@@ -30,16 +26,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.SessionSynchronization;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static com.mongodb.client.model.Aggregates.*;
 import static com.mongodb.client.model.Filters.eq;
@@ -53,9 +44,6 @@ public class AccountServiceImpl implements AccountService {
     private final MongoTemplate mongoTemplate;
     private final AccountRepository accountRepository;
     private final ClientRepository clientRepository;
-    private final CountryCodeCurrencyProperties countryCodeProperties;
-    private final TransactionManager transactionManager;
-    private final BankingUtil bankingUtil;
     private final CodecRegistry codecRegistry;
     private static final String CLIENT_COLLECTION = "clients";
     private static final String ACCOUNT_COLLECTION = "accounts";
@@ -63,17 +51,13 @@ public class AccountServiceImpl implements AccountService {
     private static final BigDecimal SAVINGS_INTEREST_RATE = BigDecimal.valueOf(0.01);
 
     @Autowired
-    public AccountServiceImpl(AccountRepository accountRepository, CountryCodeCurrencyProperties countryCodeProperties,
-                              BankingUtil bankingUtil, MongoTemplate mongoTemplate, CodecRegistry codecRegistry,
-                              ClientRepository clientRepository, TransactionManager transactionManager) {
+    public AccountServiceImpl(AccountRepository accountRepository, MongoTemplate mongoTemplate,
+                              CodecRegistry codecRegistry, ClientRepository clientRepository) {
 
         this.accountRepository = accountRepository;
         this.clientRepository = clientRepository;
-        this.countryCodeProperties = countryCodeProperties;
-        this.bankingUtil = bankingUtil;
         this.mongoTemplate = mongoTemplate;
         this.codecRegistry = codecRegistry;
-        this.transactionManager = transactionManager;
 
         this.mongoTemplate.setSessionSynchronization(SessionSynchronization.ALWAYS);
     }
@@ -88,6 +72,15 @@ public class AccountServiceImpl implements AccountService {
     @Transactional
     public SavingAccount createSavingAccount(Client client) {
         return (SavingAccount) createAccount(client, AccountType.SAVING);
+    }
+
+    @Transactional
+    @Override
+    public boolean deleteAccount(Client client, String accountNumber) {
+        client.getAccounts().remove(accountNumber);
+        Client savedClient = clientRepository.updateClientByClientId(client.getClientId());
+        long deletedAccount = accountRepository.deleteAccountByAccountNumber(accountNumber);
+        return savedClient != null && deletedAccount > 0;
     }
 
     @Override
@@ -153,40 +146,14 @@ public class AccountServiceImpl implements AccountService {
         return new ArrayList<>();
     }
 
-    @Transactional
-    @Override
-    public Map<String, Object> deleteAccount(Client client, String accountNumber) {
-        Map<String, Object> results = new HashMap<>();
-        TransactionTemplate transactionTemplate = new TransactionTemplate((PlatformTransactionManager) transactionManager);
-
-        transactionTemplate.execute(status -> {
-            MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
-            MongoCollection<Client> clientCollection = db.getCollection(CLIENT_COLLECTION, Client.class);
-            MongoCollection<Account> accountCollection = db.getCollection(ACCOUNT_COLLECTION, Account.class);
-
-            // remove account from client entity in ClientCollection
-            Bson fromClient = eq("clientId", client.getClientId());
-            Bson removeAccount = Updates.pull("accounts", accountNumber);
-
-            // delete account from accounts collection
-            Bson deleteAccount = eq("accountNumber", accountNumber);
-
-            UpdateResult clientUpdateResult = clientCollection.updateOne(fromClient, removeAccount);
-            DeleteResult accountDeleteResult = accountCollection.deleteOne(deleteAccount);
-            results.put("update-result", clientUpdateResult);
-            results.put("delete-result", accountDeleteResult);
-            return results;
-        });
-        return results;
-    }
-
     private Account createAccount(Client client, AccountType accountType) {
         Client updatedClient = fetchClientWithAddress(client);
 
         if (updatedClient != null) {
-            CurrencyType currencyType = matchCountryCodeToCurrency(updatedClient);
+            CurrencyType currencyType = BankingUtil.matchCountryCodeToCurrency(updatedClient);
             int accountSize = getAccountSize(updatedClient);
-            String accountNumber = bankingUtil.generateHashId(updatedClient.getClientId() + accountSize);
+            String generationKey = updatedClient.getClientId() + accountSize;
+            String accountNumber = BankingUtil.generateHashId(generationKey);
 
             Account account;
             if (accountType == AccountType.CHECKING) {
@@ -198,7 +165,7 @@ public class AccountServiceImpl implements AccountService {
                         .routingNumber(ROUTING_NUMBER)
                         .activeType(ActiveType.ACTIVE)
                         .transactions(new ArrayList<>())
-                        .creationDate(bankingUtil.now())
+                        .creationDate(BankingUtil.now())
                         .debitCards(new ArrayList<>())
                         .build();
             } else {
@@ -210,16 +177,17 @@ public class AccountServiceImpl implements AccountService {
                         .routingNumber(ROUTING_NUMBER)
                         .activeType(ActiveType.ACTIVE)
                         .transactions(new ArrayList<>())
-                        .creationDate(bankingUtil.now())
+                        .creationDate(BankingUtil.now())
                         .interestRate(SAVINGS_INTEREST_RATE)
                         .build();
             }
 
-            Account savedAccount = accountRepository.save(account);
-            updatedClient.getAccounts().add(savedAccount.getAccountNumber());
-            clientRepository.save(updatedClient);
-
-            return savedAccount;
+            if (account != null) {
+                Account savedAccount = accountRepository.save(account);
+                updatedClient.getAccounts().add(savedAccount.getAccountNumber());
+                clientRepository.save(updatedClient);
+                return savedAccount;
+            }
         }
         return null;
     }
@@ -249,9 +217,5 @@ public class AccountServiceImpl implements AccountService {
             }
         }
         return client;
-    }
-
-    private CurrencyType matchCountryCodeToCurrency(Client client) {
-        return countryCodeProperties.codes().get(client.getAddress().getCountryCode());
     }
 }

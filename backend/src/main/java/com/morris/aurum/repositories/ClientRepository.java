@@ -16,4 +16,7 @@ public interface ClientRepository extends MongoRepository<Client, String> {
 
     @Query("{emailAddress:  '?0'}")
     Client findByEmailAddress(String emailAddress);
+
+    @Query("{clientId:  '?0'}")
+    Client updateClientByClientId(String clientId);
 }

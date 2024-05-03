@@ -1,10 +1,10 @@
 {
   "_id": "66303c5f99a4c425bc637cf4",
-  "debitCards":[],
   "currencyType":"USD",
   "balance":"0",
-  "accountType":"CHECKING",
-  "accountNumber":"226987653",
+  "interestRate": 0.01,
+  "accountType":"SAVING",
+  "accountNumber":"226987651",
   "routingNumber":"223332111",
   "activeType":"ACTIVE",
   "transactions":[],

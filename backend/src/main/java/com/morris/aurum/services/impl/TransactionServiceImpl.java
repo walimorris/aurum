@@ -42,7 +42,6 @@ public class TransactionServiceImpl implements TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
-    private final BankingUtil bankingUtil;
     private final MongoTemplate mongoTemplate;
     private final CodecRegistry codecRegistry;
     private final TransactionManager transactionManager;
@@ -51,12 +50,12 @@ public class TransactionServiceImpl implements TransactionService {
     private static final String ACCOUNTS_COLLECTION = "accounts";
 
     @Autowired
-    public TransactionServiceImpl(TransactionRepository transactionRepository, AccountRepository accountRepository, BankingUtil bankingUtil,
-                                  MongoTemplate mongoTemplate, CodecRegistry codecRegistry, TransactionManager transactionManager) {
+    public TransactionServiceImpl(TransactionRepository transactionRepository, AccountRepository accountRepository,
+                                  MongoTemplate mongoTemplate, CodecRegistry codecRegistry,
+                                  TransactionManager transactionManager) {
 
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
-        this.bankingUtil = bankingUtil;
         this.mongoTemplate = mongoTemplate;
         this.codecRegistry = codecRegistry;
         this.transactionManager = transactionManager;
@@ -118,13 +117,13 @@ public class TransactionServiceImpl implements TransactionService {
         if (updatedAccount != null) {
             Transaction latestTransaction = getLatestTransaction(updatedAccount.getTransactions());
             BigDecimal updatedBalance = calculateBalanceWithDeposit(updatedAccount, depositAmount);
-            String transactionId = bankingUtil.generateHashId(updatedAccount.getAccountNumber() + bankingUtil.now());
+            String transactionId = BankingUtil.generateHashId(updatedAccount.getAccountNumber() + BankingUtil.now());
 
             // let's get the transaction ready to go.
             Transaction depositTransaction = DepositTransaction.builder()
                     .transactionId(transactionId)
                     .currencyType(updatedAccount.getCurrencyType())
-                    .creationDate(bankingUtil.now())
+                    .creationDate(BankingUtil.now())
                     .transactionType(TransactionType.DEPOSIT)
                     .depositAmount(depositAmount)
                     .toAccount(updatedAccount.getAccountNumber())

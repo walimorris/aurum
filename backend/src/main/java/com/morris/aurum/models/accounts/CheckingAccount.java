@@ -11,6 +11,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 import org.bson.BsonDateTime;
 import org.bson.types.ObjectId;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.List;
 
@@ -18,6 +19,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @SuperBuilder
+@Document("accounts")
 public class CheckingAccount extends Account {
     List<DebitCard> debitCards;
 

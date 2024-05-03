@@ -19,7 +19,7 @@
     "areaCode":"206",
     "primaryNumber":"5151"
   }],
-  "accounts":null,
+  "accounts":["111111111", "222222222"],
   "clientType":"INDIVIDUAL",
   "activeType":"ACTIVE",
   "firstName":"Randy",

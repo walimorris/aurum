@@ -35,7 +35,7 @@ public interface AccountService {
      *
      * @return {@link Account}
      */
-    Map<String, Object> deleteAccount(Client client, String accountNumber);
+    boolean deleteAccount(Client client, String accountNumber);
 
     /**
      * Get Account.

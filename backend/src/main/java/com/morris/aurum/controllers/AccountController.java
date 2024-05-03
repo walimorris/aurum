@@ -3,6 +3,7 @@ package com.morris.aurum.controllers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
+import com.morris.aurum.models.accounts.SavingAccount;
 import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.CorporateClient;
 import com.morris.aurum.models.clients.IndividualClient;
@@ -15,7 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/aurum/api/accounts")
@@ -38,8 +38,8 @@ public class AccountController {
     }
 
     @PostMapping("/individual/createSavingAccount")
-    public ResponseEntity<Account> createIndividualSavingAccount(IndividualClient client) {
-        Account createdAccountResult = accountService.createSavingAccount(client);
+    public ResponseEntity<SavingAccount> createIndividualSavingAccount(IndividualClient client) {
+        SavingAccount createdAccountResult = accountService.createSavingAccount(client);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(createdAccountResult);
@@ -62,8 +62,8 @@ public class AccountController {
     }
 
     @PostMapping("/deleteAccount")
-    public ResponseEntity<Map<String, Object>> deleteAccount(Client client, String accountNumber) {
-        Map<String, Object> deletedAccountResult = accountService.deleteAccount(client, accountNumber);
+    public ResponseEntity<Boolean> deleteAccount(Client client, String accountNumber) {
+        boolean deletedAccountResult = accountService.deleteAccount(client, accountNumber);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(deletedAccountResult);
