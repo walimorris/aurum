@@ -69,7 +69,7 @@ public class AccountController {
                 .body(deletedAccountResult);
     }
 
-    @GetMapping("/getAccount")
+    @GetMapping("/getCheckingAccount")
     public ResponseEntity<Account> getAccount(@RequestParam String accountNumber) {
         Account accountResult = accountService.getAccount(accountNumber);
         return ResponseEntity.ok()

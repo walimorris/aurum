@@ -1,119 +1,199 @@
 package com.morris.aurum.services.impl;
 
 import com.morris.aurum.TestHelper;
+import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
 import com.morris.aurum.models.accounts.SavingAccount;
+import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.IndividualClient;
-import com.morris.aurum.models.properties.CountryCodeCurrencyProperties;
+import com.morris.aurum.models.types.AccountType;
 import com.morris.aurum.repositories.AccountRepository;
 import com.morris.aurum.repositories.ClientRepository;
-import com.morris.aurum.utils.BankingUtil;
-import org.junit.jupiter.api.Assertions;
+import org.bson.codecs.configuration.CodecRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @RunWith(MockitoJUnitRunner.class)
+@ExtendWith(SpringExtension.class)
+@ActiveProfiles(profiles = {"coverage"})
 class AccountServiceImplTest {
+    private final AccountRepository accountRepositoryMock = Mockito.mock(AccountRepository.class);
+    private final ClientRepository clientRepositoryMock = Mockito.mock(ClientRepository.class);
+    private final MongoTemplate mongoTemplateMock = Mockito.mock(MongoTemplate.class);
+    private final CodecRegistry codecRegistryMock = Mockito.mock(CodecRegistry.class);
 
-    @InjectMocks
     private AccountServiceImpl accountService;
-
-    @Mock
-    private ClientRepository clientRepository;
-
-    @Mock
-    private AccountRepository accountRepository;
-
-    @Mock
-    private CountryCodeCurrencyProperties countryCodeCurrencyProperties;
-
-    @Mock
-    private MongoTemplate mongoTemplate;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        // This is constructor injection and manually providing mock objects. This method has shown to be more
+        // reliable than other ways of dependency injection. All tests should be made this way.
+        accountService = new AccountServiceImpl(accountRepositoryMock, clientRepositoryMock, mongoTemplateMock, codecRegistryMock);
     }
 
     private static final String CLIENT_1 = "backend/src/test/java/resources/clients/individual_client_request_1_result.json";
+    private static final String CLIENT_1_CLIENT_ID = "31796311";
     private static final String INDIVIDUAL_CLIENT_WITH_ACCOUNTS = "backend/src/test/java/resources/clients/individual_client_request_1_result.json";
+    private static final String INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1 = "111111111";
+    private static final String INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_2 = "222222222";
     private static final String CHECKING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_checking_account_response_1.json";
+    private static final String CHECKING_ACCOUNT_RESPONSE_ACCOUNT_NUMBER = "226987653";
     private static final String SAVING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_saving_account_response_1.json";
 
     @Test
-    void createCheckingAccount() throws IOException {
-        // The given account number from the test account json resource should be computed in this test
-        // and the result should be compared to the result from the out of test. This ensures methods
-        // are computing proper inputs to correct outputs.
-        String clientId = "31796311";
-        int accountSize = 2;
-        String computedHash = BankingUtil.generateHashId(clientId + accountSize);
+    void createCheckingAccount_NullClient_ReturnsNull() {
+        Client nullClient = null;
+        CheckingAccount result = accountService.createCheckingAccount(nullClient);
+        assertNull(result);
+        verifyNoInteractions(clientRepositoryMock, accountRepositoryMock);
+    }
 
+    @Test
+    void createCheckingAccount_SuccessfulCreation_ReturnsCheckingAccount() throws IOException {
         IndividualClient client = TestHelper.convertModelFromFile(CLIENT_1, IndividualClient.class);
-        CheckingAccount checkingAccount = TestHelper.convertModelFromFile(CHECKING_ACCOUNT_RESPONSE, CheckingAccount.class);
-        String checkingAccountAsString = TestHelper.writeValueAsString(checkingAccount);
+        Account checkingAccount = TestHelper.convertModelFromFile(CHECKING_ACCOUNT_RESPONSE, CheckingAccount.class);
 
-        when(clientRepository.findByClientId(client.getClientId())).thenReturn(client);
-        when(clientRepository.save(any())).thenReturn(client);
-        when(accountRepository.save(any(CheckingAccount.class))).thenReturn(checkingAccount);
-
-        when(accountService.createCheckingAccount(client)).thenReturn(checkingAccount);
+        when(accountRepositoryMock.save(any(Account.class))).thenReturn(checkingAccount);
         CheckingAccount result = accountService.createCheckingAccount(client);
-        String checkingAccountResultAsString = TestHelper.writeValueAsString(result);
 
-        Assertions.assertEquals(checkingAccountResultAsString, checkingAccountAsString);
+        assertNotNull(result);
+        assertEquals(CLIENT_1_CLIENT_ID, client.getClientId());
+        assertEquals(AccountType.CHECKING, result.getAccountType());
     }
 
     @Test
-    void createSavingAccount() throws IOException {
+    void createCheckingAccount_ErrorDuringCreation_ReturnsNull() throws IOException {
         IndividualClient client = TestHelper.convertModelFromFile(CLIENT_1, IndividualClient.class);
-        SavingAccount savingAccount = TestHelper.convertModelFromFile(SAVING_ACCOUNT_RESPONSE, SavingAccount.class);
-        String savingAccountAsString = TestHelper.writeValueAsString(savingAccount);
 
-        when(accountService.createSavingAccount(client)).thenReturn(savingAccount);
-        SavingAccount result = accountService.createSavingAccount(client);
-        String savingAccountResultAsString = TestHelper.writeValueAsString(result);
+        when(clientRepositoryMock.findByClientId(CLIENT_1_CLIENT_ID)).thenReturn(client);
+        when(accountRepositoryMock.save(any(Account.class))).thenThrow(new RuntimeException("Failed to save account"));
+        CheckingAccount result = accountService.createCheckingAccount(client);
 
-        Assertions.assertEquals(savingAccountResultAsString, savingAccountAsString);
+        assertNull(result);
+        verify(accountRepositoryMock).save(any(Account.class));
+        verifyNoMoreInteractions(clientRepositoryMock, accountRepositoryMock);
     }
 
     @Test
-    void deleteAccount() throws IOException {
+    void createSavingAccount_NullClient_ReturnsNull() {
+        Client nullClient = null;
+        SavingAccount result = accountService.createSavingAccount(nullClient);
+        assertNull(result);
+        verifyNoInteractions(clientRepositoryMock, accountRepositoryMock);
+    }
+
+    @Test
+    void createSavingAccount_SuccessfulCreation_ReturnsCheckingAccount() throws IOException {
+        IndividualClient client = TestHelper.convertModelFromFile(CLIENT_1, IndividualClient.class);
+        Account savingAccount = TestHelper.convertModelFromFile(SAVING_ACCOUNT_RESPONSE, SavingAccount.class);
+
+        when(accountRepositoryMock.save(any(Account.class))).thenReturn(savingAccount);
+        SavingAccount result = accountService.createSavingAccount(client);
+
+        assertNotNull(result);
+        assertEquals(CLIENT_1_CLIENT_ID, client.getClientId());
+        assertEquals(AccountType.SAVING, result.getAccountType());
+    }
+
+    @Test
+    void createSavingAccount_ErrorDuringCreation_ReturnsNull() throws IOException {
+        IndividualClient client = TestHelper.convertModelFromFile(CLIENT_1, IndividualClient.class);
+
+        when(clientRepositoryMock.findByClientId(CLIENT_1_CLIENT_ID)).thenReturn(client);
+        when(accountRepositoryMock.save(any(Account.class))).thenThrow(new RuntimeException("Failed to save account"));
+        SavingAccount result = accountService.createSavingAccount(client);
+
+        assertNull(result);
+        verify(accountRepositoryMock).save(any(Account.class));
+        verifyNoMoreInteractions(clientRepositoryMock, accountRepositoryMock);
+    }
+
+    @Test
+    void deleteAccount_Successful_Delete_ReturnsTrue() throws IOException {
         // If these account numbers below are updated in the individual client resource test file, they must also be updated here.
-        String accountNumber_1 = "111111111";
-        String accountNumber_2 = "222222222";
         IndividualClient individualClient = TestHelper.convertModelFromFile(INDIVIDUAL_CLIENT_WITH_ACCOUNTS, IndividualClient.class);
-        individualClient.getAccounts().remove(accountNumber_1);
+        individualClient.getAccounts().remove(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
 
         // Ensure the account_1 was removed and account_2 still exists
         assertAll(
                 () -> assertEquals(1, individualClient.getAccounts().size()),
-                () -> assertTrue(individualClient.getAccounts().contains(accountNumber_2))
+                () -> assertTrue(individualClient.getAccounts().contains(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_2))
         );
 
-        when(clientRepository.updateClientByClientId(individualClient.getClientId())).thenReturn(individualClient);
-        when(accountRepository.deleteAccountByAccountNumber(accountNumber_1)).thenReturn(1L);
+        when(clientRepositoryMock.updateClientByClientId(individualClient.getClientId())).thenReturn(individualClient);
+        when(accountRepositoryMock.deleteAccountByAccountNumber(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1)).thenReturn(1L);
 
-        boolean result = accountService.deleteAccount(individualClient, accountNumber_1);
+        boolean result = accountService.deleteAccount(individualClient, INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
         assertTrue(result);
     }
 
     @Test
-    void getAccount() {
+    void deleteAccount_NullClient_ReturnsFalse() {
+        Client nullClient = null;
+        boolean result = accountService.deleteAccount(nullClient, INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
+        assertFalse(result);
+        verifyNoInteractions(clientRepositoryMock, accountRepositoryMock);
+    }
+
+    @Test
+    void deleteAccount_ErrorDuringDeletion_ReturnsFalse() throws IOException {
+        // If these account numbers below are updated in the individual client resource test file, they must also be updated here.
+        IndividualClient individualClient = TestHelper.convertModelFromFile(INDIVIDUAL_CLIENT_WITH_ACCOUNTS, IndividualClient.class);
+        individualClient.getAccounts().remove(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
+
+        // Ensure the account_1 was removed and account_2 still exists
+        assertAll(
+                () -> assertEquals(1, individualClient.getAccounts().size()),
+                () -> assertTrue(individualClient.getAccounts().contains(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_2))
+        );
+
+        when(clientRepositoryMock.updateClientByClientId(individualClient.getClientId())).thenReturn(individualClient);
+        when(accountRepositoryMock.deleteAccountByAccountNumber(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1))
+                .thenThrow(new RuntimeException("Failed to delete account"));
+
+        boolean result = accountService.deleteAccount(individualClient, INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
+        assertFalse(result);
+    }
+
+    @Test
+    void getAccount_SUCCESSFUL_ReturnsAccount() throws IOException {
+        Account account = TestHelper.convertModelFromFile(CHECKING_ACCOUNT_RESPONSE, CheckingAccount.class);
+
+        when(accountRepositoryMock.findByAccountNumber(CHECKING_ACCOUNT_RESPONSE_ACCOUNT_NUMBER)).thenReturn(account);
+        Account accountResult = accountService.getAccount(CHECKING_ACCOUNT_RESPONSE_ACCOUNT_NUMBER);
+
+        assertEquals(accountResult.getAccountNumber(), CHECKING_ACCOUNT_RESPONSE_ACCOUNT_NUMBER);
+        assertNotNull(accountResult);
+    }
+
+    @Test
+    void getAccount_EmptyAccountNumber_ReturnsNull() {
+        Account accountResult = accountService.getAccount("");
+        assertNull(accountResult);
+    }
+
+    @Test
+    void getAccount_ErrorDuringFetch_ReturnsNull() throws IOException {
+        when(accountRepositoryMock.findByAccountNumber(CHECKING_ACCOUNT_RESPONSE_ACCOUNT_NUMBER))
+                .thenThrow(new RuntimeException("Failed to fetch Account"));
+
+        Account accountResult = accountService.getAccount(CHECKING_ACCOUNT_RESPONSE_ACCOUNT_NUMBER);
+        assertNull(accountResult);
     }
 
     @Test

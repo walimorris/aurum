@@ -51,8 +51,8 @@ public class AccountServiceImpl implements AccountService {
     private static final BigDecimal SAVINGS_INTEREST_RATE = BigDecimal.valueOf(0.01);
 
     @Autowired
-    public AccountServiceImpl(AccountRepository accountRepository, MongoTemplate mongoTemplate,
-                              CodecRegistry codecRegistry, ClientRepository clientRepository) {
+    public AccountServiceImpl(AccountRepository accountRepository, ClientRepository clientRepository,
+                              MongoTemplate mongoTemplate, CodecRegistry codecRegistry) {
 
         this.accountRepository = accountRepository;
         this.clientRepository = clientRepository;
@@ -65,27 +65,54 @@ public class AccountServiceImpl implements AccountService {
     @Override
     @Transactional
     public CheckingAccount createCheckingAccount(Client client) {
+        if (client == null) {
+            return null;
+        }
         return (CheckingAccount) createAccount(client, AccountType.CHECKING);
     }
 
     @Override
     @Transactional
     public SavingAccount createSavingAccount(Client client) {
+        if (client == null) {
+            return null;
+        }
         return (SavingAccount) createAccount(client, AccountType.SAVING);
     }
 
     @Transactional
     @Override
     public boolean deleteAccount(Client client, String accountNumber) {
+        if (client == null) {
+            return false;
+        }
         client.getAccounts().remove(accountNumber);
-        Client savedClient = clientRepository.updateClientByClientId(client.getClientId());
-        long deletedAccount = accountRepository.deleteAccountByAccountNumber(accountNumber);
+        Client savedClient;
+        long deletedAccount;
+
+        try {
+            savedClient = clientRepository.updateClientByClientId(client.getClientId());
+            deletedAccount = accountRepository.deleteAccountByAccountNumber(accountNumber);
+        } catch (RuntimeException e) {
+            LOGGER.error("Error deleting account with account_number '{}': {}", accountNumber, e.getMessage());
+            return false;
+        }
         return savedClient != null && deletedAccount > 0;
     }
 
     @Override
     public Account getAccount(String accountNumber) {
-        return accountRepository.findByAccountNumber(accountNumber);
+        if (accountNumber.isEmpty()) {
+            return null;
+        }
+        Account account;
+        try {
+            account = accountRepository.findByAccountNumber(accountNumber);
+        } catch (RuntimeException e) {
+            LOGGER.error("Error fetching account with accountNumber '{}': {}", accountNumber, e.getMessage());
+            return null;
+        }
+        return account;
     }
 
     @Override
@@ -183,10 +210,15 @@ public class AccountServiceImpl implements AccountService {
             }
 
             if (account != null) {
-                Account savedAccount = accountRepository.save(account);
-                updatedClient.getAccounts().add(savedAccount.getAccountNumber());
-                clientRepository.save(updatedClient);
-                return savedAccount;
+                try {
+                    Account savedAccount = accountRepository.save(account);
+                    updatedClient.getAccounts().add(savedAccount.getAccountNumber());
+                    clientRepository.save(updatedClient);
+                    return savedAccount;
+                } catch (RuntimeException e) {
+                    LOGGER.error("Failed to save created Account: {}", e.getMessage());
+                    return null;
+                }
             }
         }
         return null;
