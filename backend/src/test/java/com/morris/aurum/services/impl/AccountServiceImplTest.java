@@ -59,7 +59,7 @@ class AccountServiceImplTest {
     private static final String INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_2 = "222222222";
     private static final String INDIVIDUAL_CLIENT_WITH_ACCOUNTS_2 = "backend/src/test/java/resources/clients/individual_client_request_2_result.json";
     private static final String INDIVIDUAL_CLIENT_2_ACCOUNT_NUMBER_1 = "226987653";
-    private static final String INDIVIDUAL_CLIENT_2_ACCOUNT_NUMBER_2 = "226987653";
+    private static final String INDIVIDUAL_CLIENT_2_ACCOUNT_NUMBER_2 = "226987651";
     private static final String CHECKING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_checking_account_response_1.json";
     private static final String CHECKING_ACCOUNT_RESPONSE_ACCOUNT_NUMBER = "226987653";
     private static final String SAVING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_saving_account_response_1.json";
