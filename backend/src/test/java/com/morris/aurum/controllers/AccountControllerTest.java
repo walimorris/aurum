@@ -38,6 +38,7 @@ class AccountControllerTest {
     private static final String SAVING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_saving_account_response_1.json";
     private static final String POST_NEW_INDIVIDUAL_CHECKING_ACCOUNT_REQUEST = "/aurum/api/accounts/individual/createCheckingAccount";
     private static final String POST_NEW_INDIVIDUAL_SAVING_ACCOUNT_REQUEST = "/aurum/api/accounts/individual/createSavingAccount";
+    private static final String POST_DELETE_ACCOUNT = "/arum/api/accounts/deleteAccount";
 
 
     @Test
@@ -73,7 +74,8 @@ class AccountControllerTest {
     }
 
     @Test
-    void deleteAccount() {
+    void deleteAccount() throws IOException {
+
     }
 
     @Test
