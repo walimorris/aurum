@@ -13,10 +13,13 @@ import com.morris.aurum.utils.BankingUtil;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -29,26 +32,27 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 @SpringBootTest
+@RunWith(MockitoJUnitRunner.class)
 @ExtendWith(SpringExtension.class)
 @ActiveProfiles(profiles = {"coverage"})
 class ClientServiceImplTest {
-    @Mock
-    private static BankingUtil mockBankingUtil;
 
-    @Mock
-    private static ClientRepository mockClientRepository;
+    private final ClientRepository mockClientRepository = Mockito.mock(ClientRepository.class);
+
+    private ClientServiceImpl clientService;
 
     private static Contact contact;
     private static Address address;
-    private static CreateClientRequest clientRequest;
     private static final String INDIVIDUAL_CLIENT_REQUEST_1_JSON = "backend/src/test/java/resources/clients/client_request_1.json";
     private static final String INDIVIDUAL_CLIENT_REQUEST_1_RESULT_JSON = "backend/src/test/java/resources/clients/individual_client_request_1_result.json";
     private static final String CORPORATE_CLIENT_REQUEST_1_RESULT_JSON = "backend/src/test/java/resources/clients/corporate_client_request_1_result.json";
 
-    @BeforeAll
-    static void setUp() {
-        mockBankingUtil = Mockito.mock(BankingUtil.class);
-        mockClientRepository = Mockito.mock(ClientRepository.class);
+    @BeforeEach
+    void setUp() {
+
+        // This is constructor injection and manually providing mock objects. This method has shown to be more
+        // reliable than other ways of dependency injection. All tests should be made this way.
+        clientService = new ClientServiceImpl(mockClientRepository);
 
         contact = Contact.builder()
                 .countryCode("+1")
@@ -66,23 +70,10 @@ class ClientServiceImplTest {
                 .streetName("Roosevelt")
                 .zipcode("66543")
                 .build();
-
-        clientRequest = CreateClientRequest.builder()
-                .clientType(ClientType.INDIVIDUAL)
-                .contact(contact)
-                .accountType(AccountType.CHECKING)
-                .address(address)
-                .emailAddress("rsavage@gmail.com")
-                .firstName("Randy")
-                .lastName("Savage")
-                .dateOfBirth("03/25/1965")
-                .userName("rsavage1")
-                .password("**********")
-                .build();
     }
 
     @Test
-    void createNewCorporateClient() throws IOException {
+    void createNewCorporateClient() {
         CreateClientRequest clientRequest = CreateClientRequest.builder()
                 .ein("987654321")
                 .businessName("Eden Works")
@@ -96,96 +87,48 @@ class ClientServiceImplTest {
                 .password("**********")
                 .build();
 
-        when(mockBankingUtil.generateHashId(clientRequest.getEin())).thenReturn("111111111");
-        String clientHashId = mockBankingUtil.generateHashId(clientRequest.getEin());
-        List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
-
-        CorporateClient corporateClient = CorporateClient.builder()
-                .id(new ObjectId("66303c5f99a4c425bc637cf4"))
-                .userName(clientRequest.getUserName())
-                .password(clientRequest.getPassword())
-                .clientId(clientHashId)
-                .emailAddress(clientRequest.getEmailAddress())
-                .address(clientRequest.getAddress())
-                .contacts(contacts)
-                .clientType(clientRequest.getClientType())
-                .activeType(ActiveType.ACTIVE)
-                .businessName(clientRequest.getBusinessName())
-                .corporateEntityType(clientRequest.getCorporateEntityType())
-                .ein(clientRequest.getEin())
-                .build();
-
-        CorporateClient clientResultFromRequestJson = (CorporateClient) TestHelper.convertModelFromFile(CORPORATE_CLIENT_REQUEST_1_RESULT_JSON,
-                CorporateClient.class, null);
-        String corporateClientResultFromRequestTestString = TestHelper.writeValueAsString(corporateClient);
-        String clientResultFromRequestModelString = TestHelper.writeValueAsString(clientResultFromRequestJson);
-        Assertions.assertEquals(clientResultFromRequestModelString, corporateClientResultFromRequestTestString);
+        String computedClientHash = "152976708";
+        Client corporateClientResult = clientService.createNewCorporateClient(clientRequest);
+        assertEquals(computedClientHash, corporateClientResult.getClientId());
+        assertEquals("edenworks@gmail.com", corporateClientResult.getEmailAddress());
     }
 
     @Test
-    void createNewIndividualClient() throws IOException {
-        when(mockBankingUtil.generateHashId(clientRequest.getUserName())).thenReturn("31796311");
-        String clientHashId = mockBankingUtil.generateHashId(clientRequest.getUserName());
-        List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
-
-        IndividualClient individualClient = IndividualClient.builder()
-                .id(new ObjectId("66303c5f99a4c425bc637cf4"))
-                .userName(clientRequest.getUserName())
-                .password(clientRequest.getPassword())
-                .clientId(clientHashId)
-                .emailAddress(clientRequest.getEmailAddress())
-                .address(clientRequest.getAddress())
-                .contacts(contacts)
-                .clientType(clientRequest.getClientType())
-                .activeType(ActiveType.ACTIVE)
-                .firstName(clientRequest.getFirstName())
-                .lastName(clientRequest.getLastName())
-                .dateOfBirth(clientRequest.getDateOfBirth())
+    void createNewIndividualClient() {
+        CreateClientRequest clientRequest  = CreateClientRequest.builder()
+                .clientType(ClientType.INDIVIDUAL)
+                .contact(contact)
+                .accountType(AccountType.CHECKING)
+                .address(address)
+                .emailAddress("rsavage@gmail.com")
+                .firstName("Randy")
+                .lastName("Savage")
+                .dateOfBirth("03/25/1965")
+                .userName("rsavage1")
+                .password("**********")
                 .build();
 
-        IndividualClient clientResultFromRequestJson = (IndividualClient) TestHelper.convertModelFromFile(INDIVIDUAL_CLIENT_REQUEST_1_RESULT_JSON,
-                IndividualClient.class, null);
-        String individualClientResultFromRequestTestString = TestHelper.writeValueAsString(individualClient);
-        String clientResultFromRequestModelString = TestHelper.writeValueAsString(clientResultFromRequestJson);
-        Assertions.assertEquals(clientResultFromRequestModelString, individualClientResultFromRequestTestString);
+        String computedClientHash = "31796311";
+        Client individualClient = clientService.createNewIndividualClient(clientRequest);
+        assertEquals(computedClientHash, individualClient.getClientId());
+        assertEquals("rsavage@gmail.com", individualClient.getEmailAddress());
     }
 
     @Test
-    void insertClient() {
-        when(mockBankingUtil.generateHashId(clientRequest.getUserName())).thenReturn("31796311");
-        String clientHashId = mockBankingUtil.generateHashId(clientRequest.getUserName());
-        List<Contact> contacts = Collections.singletonList(clientRequest.getContact());
-
-        IndividualClient individualClient = IndividualClient.builder()
-                .id(new ObjectId("66303c5f99a4c425bc637cf4"))
-                .userName(clientRequest.getUserName())
-                .password(clientRequest.getPassword())
-                .clientId(clientHashId)
-                .emailAddress(clientRequest.getEmailAddress())
-                .address(clientRequest.getAddress())
-                .contacts(contacts)
-                .clientType(clientRequest.getClientType())
-                .activeType(ActiveType.ACTIVE)
-                .firstName(clientRequest.getFirstName())
-                .lastName(clientRequest.getLastName())
-                .dateOfBirth(clientRequest.getDateOfBirth())
-                .build();
-
+    void insertClient() throws IOException {
+        IndividualClient individualClient = TestHelper.convertModelFromFile(INDIVIDUAL_CLIENT_REQUEST_1_RESULT_JSON, IndividualClient.class);
         when(mockClientRepository.insert(individualClient)).thenReturn(individualClient);
-        Client resultClient = mockClientRepository.insert(individualClient);
+        Client resultClient = clientService.insertClient(individualClient);
 
         assertAll(
-                () -> assertEquals(resultClient.getClientId(), individualClient.getClientId()),
-                () -> assertEquals(resultClient.getClientType(), individualClient.getClientType()),
-                () -> assertEquals(resultClient.getPassword(), individualClient.getPassword()),
-                () -> assertEquals(resultClient.getAddress(), individualClient.getAddress()),
-                () -> assertNull(individualClient.getAccounts()),
-                () -> assertEquals(resultClient.getActiveType(), individualClient.getActiveType()),
-                () -> assertEquals(resultClient.getContacts().size(), individualClient.getContacts().size()),
-                () -> assertEquals(resultClient.getUserName(), individualClient.getUserName()),
-                () -> assertEquals("Randy", individualClient.getFirstName()),
-                () -> assertEquals("Savage", individualClient.getLastName()),
-                () -> assertEquals("03/25/1965", individualClient.getDateOfBirth())
+                () -> assertEquals(individualClient.getClientId(), resultClient.getClientId()),
+                () -> assertEquals(individualClient.getClientType(), resultClient.getClientType()),
+                () -> assertEquals(individualClient.getPassword(), resultClient.getPassword()),
+                () -> assertEquals(individualClient.getAddress(), resultClient.getAddress()),
+                () -> assertEquals(2, resultClient.getAccounts().size()),
+                () -> assertEquals(individualClient.getActiveType(), resultClient.getActiveType()),
+                () -> assertEquals(1, resultClient.getContacts().size()),
+                () -> assertEquals(individualClient.getUserName(), resultClient.getUserName())
         );
     }
 }
