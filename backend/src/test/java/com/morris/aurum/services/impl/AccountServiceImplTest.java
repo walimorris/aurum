@@ -1,5 +1,8 @@
 package com.morris.aurum.services.impl;
 
+import com.mongodb.client.AggregateIterable;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
 import com.morris.aurum.TestHelper;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
@@ -9,6 +12,7 @@ import com.morris.aurum.models.clients.IndividualClient;
 import com.morris.aurum.models.types.AccountType;
 import com.morris.aurum.repositories.AccountRepository;
 import com.morris.aurum.repositories.ClientRepository;
+import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +26,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,6 +57,9 @@ class AccountServiceImplTest {
     private static final String INDIVIDUAL_CLIENT_WITH_ACCOUNTS = "backend/src/test/java/resources/clients/individual_client_request_1_result.json";
     private static final String INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1 = "111111111";
     private static final String INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_2 = "222222222";
+    private static final String INDIVIDUAL_CLIENT_WITH_ACCOUNTS_2 = "backend/src/test/java/resources/clients/individual_client_request_2_result.json";
+    private static final String INDIVIDUAL_CLIENT_2_ACCOUNT_NUMBER_1 = "226987653";
+    private static final String INDIVIDUAL_CLIENT_2_ACCOUNT_NUMBER_2 = "226987653";
     private static final String CHECKING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_checking_account_response_1.json";
     private static final String CHECKING_ACCOUNT_RESPONSE_ACCOUNT_NUMBER = "226987653";
     private static final String SAVING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_saving_account_response_1.json";
@@ -197,6 +206,36 @@ class AccountServiceImplTest {
     }
 
     @Test
-    void getAllAccountsForClient() {
+    void getAllAccountsForClient() throws IOException {
+        List<Document> clientResultsWithAccountsList = new ArrayList<>();
+
+        // get the accounts
+        CheckingAccount account1 = TestHelper.convertModelFromFile(CHECKING_ACCOUNT_RESPONSE, CheckingAccount.class);
+        SavingAccount account2 = TestHelper.convertModelFromFile(SAVING_ACCOUNT_RESPONSE, SavingAccount.class);
+
+        // get account json representation
+        String account1AsJsonString = TestHelper.asJSONString(account1);
+        String account2AsJsonString = TestHelper.asJSONString(account2);
+
+        // we will wrap a document manually - these should be account
+        Document accountDocument1 = Document.parse(account1AsJsonString);
+        Document accountDocument2 = Document.parse(account2AsJsonString);
+
+        clientResultsWithAccountsList.add(accountDocument1);
+        clientResultsWithAccountsList.add(accountDocument2);
+
+        MongoDatabase mongoDatabaseMock = Mockito.mock(MongoDatabase.class);
+        when(mongoTemplateMock.getDb()).thenReturn(mongoDatabaseMock);
+        when(mongoTemplateMock.getDb().withCodecRegistry(any(CodecRegistry.class))).thenReturn(mongoDatabaseMock);
+        MongoCollection<Document> mongoCollectionMock = Mockito.mock(MongoCollection.class);
+        when(mongoDatabaseMock.getCollection(any())).thenReturn(mongoCollectionMock);
+        AggregateIterable<Document> aggregateIterableMock = Mockito.mock(AggregateIterable.class);
+        when(mongoCollectionMock.aggregate(any())).thenReturn(aggregateIterableMock);
+        when(aggregateIterableMock.into(any())).thenReturn(new ArrayList<>(clientResultsWithAccountsList));
+
+        List<Account> result = accountService.getAllAccountsForClient(CLIENT_1_CLIENT_ID);
+
+        assertNotNull(result);
+        assertEquals(2, result.size()); // we passed two accounts we should get two back
     }
 }

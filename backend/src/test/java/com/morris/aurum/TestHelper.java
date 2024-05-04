@@ -7,7 +7,9 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.morris.aurum.models.accounts.Account;
+import com.morris.aurum.models.serializers.BsonDateTimeDeserializer;
 import com.morris.aurum.models.transactions.Transaction;
+import org.bson.BsonDateTime;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +28,11 @@ public class TestHelper {
     private TestHelper() {
         SimpleModule simpleModule = new SimpleModule();
         simpleModule.addSerializer(ToStringSerializer.class, new ToStringSerializer());
-        objectMapper.registerModule(simpleModule);
+
+        SimpleModule simpleModule2 = new SimpleModule();
+        simpleModule2.addDeserializer(BsonDateTime.class, new BsonDateTimeDeserializer());
+
+        objectMapper.registerModules(simpleModule, simpleModule2);
     }
 
     /**

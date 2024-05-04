@@ -10,11 +10,16 @@ import java.io.IOException;
 
 public class BsonDateTimeDeserializer extends StdDeserializer<BsonDateTime> {
     private static final String DATE = "$date";
+    private static final String VALUE = "value";
     private static final String NUMBER_LONG = "$numberLong";
     private static final String INVALID_BSON_VALUE = "Invalid BsonDateTime value: ";
 
-    protected BsonDateTimeDeserializer() {
-        super(BsonDateTime.class);
+    public BsonDateTimeDeserializer() {
+        this(null);
+    }
+
+    protected BsonDateTimeDeserializer(Class<?> vc) {
+        super(vc);
     }
 
     /**
@@ -30,10 +35,19 @@ public class BsonDateTimeDeserializer extends StdDeserializer<BsonDateTime> {
     @Override
     public BsonDateTime deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         JsonNode node = p.getCodec().readTree(p);
-        if (node != null && node.has(DATE)) {
-            JsonNode dateNode = node.get(DATE);
-            if (dateNode != null && dateNode.has(NUMBER_LONG)) {
-                String timestampString = dateNode.get(NUMBER_LONG).asText();
+        if (node != null) {
+            String timestampString = null;
+            if (node.has(DATE)) {
+                JsonNode dateNode = node.get(DATE);
+                if (dateNode != null && dateNode.has(NUMBER_LONG)) {
+                    timestampString = dateNode.get(NUMBER_LONG).asText();
+                }
+            } else {
+                if (node.has(VALUE)) {
+                    timestampString = node.get(VALUE).asText();
+                }
+            }
+            if (timestampString != null) {
                 try {
                     long timestamp = Long.parseLong(timestampString);
                     return new BsonDateTime(timestamp);

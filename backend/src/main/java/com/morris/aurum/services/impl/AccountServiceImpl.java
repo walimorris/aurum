@@ -1,7 +1,6 @@
 package com.morris.aurum.services.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -116,7 +115,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
-    public List<Account> getAllAccountsForClient(String clientId) throws JsonProcessingException {
+    public List<Account> getAllAccountsForClient(String clientId) {
         MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
         MongoCollection<Document> clientCollection = db.getCollection(CLIENT_COLLECTION);
 
@@ -143,34 +142,39 @@ public class AccountServiceImpl implements AccountService {
         Bson unwind = unwind("$accounts", new UnwindOptions().preserveNullAndEmptyArrays(true));
         List<Bson> pipeline = asList(match, lookup, unwind,
                 project(fields(excludeId(),
-                        include("clientId"),
-                        include("firstName"),
-                        include("lastName"),
-                        include("emailAddress"),
-                        include("address"),
-                        include("contacts"),
-                        include("accounts"),
-                        include("clientType"),
+                        include("currencyType"),
+                        include("balance"),
+                        include("accountType"),
+                        include("accountNumber"),
+                        include("routingNumber"),
                         include("activeType"),
+                        include("transactions"),
+                        include("creationDate"),
                         computed("accountNumber", "$accounts.accountNumber"))));
 
         List<Document> clientResultsWithAccountsList = clientCollection.aggregate(pipeline)
                 .into(new ArrayList<>());
 
+        List<Account> accounts = new ArrayList<>();
         if (!clientResultsWithAccountsList.isEmpty()) {
-            Document result = (Document) clientResultsWithAccountsList.get(0).get("accounts");
-            if (result != null) {
-                ObjectMapper objectMapper = new ObjectMapper();
-                try {
-                    Account accounts = objectMapper.readValue(result.toJson(), new TypeReference<>() {});
-                    LOGGER.info("accounts: " + accounts);
-                    return List.of(accounts);
-                } catch (Exception e) {
-                    LOGGER.error("Error converting accounts: " + e.getMessage());
+            ObjectMapper objectMapper = new ObjectMapper();
+            try {
+                for (Document accountDocument : clientResultsWithAccountsList) {
+                    String accountType = (String) accountDocument.get("accountType");
+
+                    if (accountType.equals(AccountType.CHECKING.name())) {
+                        CheckingAccount checkingAccount = objectMapper.readValue(accountDocument.toJson(), CheckingAccount.class);
+                        accounts.add(checkingAccount);
+                    } else {
+                        SavingAccount savingAccount = objectMapper.readValue(accountDocument.toJson(), SavingAccount.class);
+                        accounts.add(savingAccount);
+                    }
                 }
+            } catch (JsonProcessingException e) {
+                LOGGER.error("Error converting accounts: " + e.getMessage());
             }
         }
-        return new ArrayList<>();
+        return accounts;
     }
 
     private Account createAccount(Client client, AccountType accountType) {
