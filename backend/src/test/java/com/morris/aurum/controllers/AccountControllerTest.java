@@ -1,6 +1,7 @@
 package com.morris.aurum.controllers;
 
 import com.morris.aurum.TestHelper;
+import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
 import com.morris.aurum.models.accounts.SavingAccount;
 import com.morris.aurum.models.clients.IndividualClient;
@@ -14,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.IOException;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -35,6 +37,7 @@ class AccountControllerTest {
     private static final String UTF_8 = "UTF-8";
 
     private static final String CLIENT_1 = "backend/src/test/java/resources/clients/individual_client_request_1_result.json";
+    private static final String CLIENT_1_ID = "31796311";
     private static final String CHECKING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/checking_account_response_1.json";
     private static final String CHECKING_ACCOUNT_NUMBER_1 = "226987653";
     private static final String SAVING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/saving_account_response_1.json";
@@ -43,6 +46,8 @@ class AccountControllerTest {
     private static final String POST_DELETE_ACCOUNT = "/arum/api/accounts/deleteAccount";
     private static final String GET_ACCOUNT = "/aurum/api/accounts/getCheckingAccount";
     private static final String GET_ACCOUNT_PARAM = "accountNumber";
+    private static final String GET_ALL_ACCOUNTS = "/aurum/api/accounts/getAllAccounts";
+    private static final String GET_ALL_ACCOUNTS_PARAM = "clientId";
 
 
     @Test
@@ -95,6 +100,16 @@ class AccountControllerTest {
     }
 
     @Test
-    void getAllAccounts() {
+    void getAllAccounts() throws Exception {
+        CheckingAccount checkingAccount = TestHelper.convertModelFromFile(CHECKING_ACCOUNT_RESPONSE, CheckingAccount.class);
+        SavingAccount savingAccount = TestHelper.convertModelFromFile(SAVING_ACCOUNT_RESPONSE, SavingAccount.class);
+        List<Account> accounts = List.of(checkingAccount, savingAccount);
+        String accountsAsString = TestHelper.writeValueAsString(accounts);
+
+        when(accountService.getAllAccountsForClient(CLIENT_1_ID)).thenReturn(accounts);
+
+        this.mockModelViewController.perform(get(GET_ALL_ACCOUNTS).param(GET_ALL_ACCOUNTS_PARAM, CLIENT_1_ID))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(content().json(accountsAsString));
     }
 }

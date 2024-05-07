@@ -1,12 +1,9 @@
 package com.morris.aurum.services.impl;
 
-import com.mongodb.ClientSessionOptions;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.TransactionBody;
 import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
-import com.mongodb.lang.NonNull;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.transactions.DepositTransaction;
 import com.morris.aurum.models.transactions.Transaction;
