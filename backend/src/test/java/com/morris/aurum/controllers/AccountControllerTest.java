@@ -17,6 +17,7 @@ import java.io.IOException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,11 +35,14 @@ class AccountControllerTest {
     private static final String UTF_8 = "UTF-8";
 
     private static final String CLIENT_1 = "backend/src/test/java/resources/clients/individual_client_request_1_result.json";
-    private static final String CHECKING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_checking_account_response_1.json";
-    private static final String SAVING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/post_saving_account_response_1.json";
+    private static final String CHECKING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/checking_account_response_1.json";
+    private static final String CHECKING_ACCOUNT_NUMBER_1 = "226987653";
+    private static final String SAVING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/saving_account_response_1.json";
     private static final String POST_NEW_INDIVIDUAL_CHECKING_ACCOUNT_REQUEST = "/aurum/api/accounts/individual/createCheckingAccount";
     private static final String POST_NEW_INDIVIDUAL_SAVING_ACCOUNT_REQUEST = "/aurum/api/accounts/individual/createSavingAccount";
     private static final String POST_DELETE_ACCOUNT = "/arum/api/accounts/deleteAccount";
+    private static final String GET_ACCOUNT = "/aurum/api/accounts/getCheckingAccount";
+    private static final String GET_ACCOUNT_PARAM = "accountNumber";
 
 
     @Test
@@ -79,7 +83,15 @@ class AccountControllerTest {
     }
 
     @Test
-    void getAccount() {
+    void getAccount() throws Exception {
+        CheckingAccount checkingAccount = TestHelper.convertModelFromFile(CHECKING_ACCOUNT_RESPONSE, CheckingAccount.class);
+        String checkingAccountAsString = TestHelper.writeValueAsString(checkingAccount);
+
+        when(accountService.getAccount(CHECKING_ACCOUNT_NUMBER_1)).thenReturn(checkingAccount);
+
+        this.mockModelViewController.perform(get(GET_ACCOUNT).param(GET_ACCOUNT_PARAM, CHECKING_ACCOUNT_NUMBER_1))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(content().json(checkingAccountAsString));
     }
 
     @Test

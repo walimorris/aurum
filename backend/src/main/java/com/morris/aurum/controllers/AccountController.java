@@ -38,7 +38,7 @@ public class AccountController {
     }
 
     @PostMapping("/individual/createSavingAccount")
-    public ResponseEntity<SavingAccount> createIndividualSavingAccount(IndividualClient client) {
+    public ResponseEntity<SavingAccount> createIndividualSavingAccount(@RequestBody IndividualClient client) {
         SavingAccount createdAccountResult = accountService.createSavingAccount(client);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
@@ -54,7 +54,7 @@ public class AccountController {
     }
 
     @PostMapping("/corporation/createSavingAccount")
-    public ResponseEntity<Account> createCorporateSavingAccount(CorporateClient client) {
+    public ResponseEntity<Account> createCorporateSavingAccount(@RequestBody CorporateClient client) {
         Account createdAccountResult = accountService.createSavingAccount(client);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
