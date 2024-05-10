@@ -14,7 +14,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.io.IOException;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -43,7 +42,9 @@ class AccountControllerTest {
     private static final String SAVING_ACCOUNT_RESPONSE = "backend/src/test/java/resources/accounts/saving_account_response_1.json";
     private static final String POST_NEW_INDIVIDUAL_CHECKING_ACCOUNT_REQUEST = "/aurum/api/accounts/individual/createCheckingAccount";
     private static final String POST_NEW_INDIVIDUAL_SAVING_ACCOUNT_REQUEST = "/aurum/api/accounts/individual/createSavingAccount";
-    private static final String POST_DELETE_ACCOUNT = "/arum/api/accounts/deleteAccount";
+    private static final String POST_DELETE_ACCOUNT = "/aurum/api/accounts/deleteAccount";
+    private static final String POST_DELETE_ACCOUNT_PARAM_1 = "clientId";
+    private static final String POST_DELETE_ACCOUNT_PARAM_2 = "accountNumber";
     private static final String GET_ACCOUNT = "/aurum/api/accounts/getCheckingAccount";
     private static final String GET_ACCOUNT_PARAM = "accountNumber";
     private static final String GET_ALL_ACCOUNTS = "/aurum/api/accounts/getAllAccounts";
@@ -81,11 +82,14 @@ class AccountControllerTest {
                 .andExpect(status().is2xxSuccessful())
                 .andExpect(content().json(savingAccountAsString));
     }
-
-    // TODO: Change parameters: rethink passing both a Client and accountNumber
     @Test
-    void deleteAccount() throws IOException {
-
+    void deleteAccount() throws Exception {
+        when(accountService.deleteAccount(CLIENT_1_ID, CHECKING_ACCOUNT_NUMBER_1)).thenReturn(true);
+        this.mockModelViewController.perform(post(POST_DELETE_ACCOUNT)
+                        .param(POST_DELETE_ACCOUNT_PARAM_1, CLIENT_1_ID)
+                        .param(POST_DELETE_ACCOUNT_PARAM_2, CHECKING_ACCOUNT_NUMBER_1))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(content().string(String.valueOf(true)));
     }
 
     @Test

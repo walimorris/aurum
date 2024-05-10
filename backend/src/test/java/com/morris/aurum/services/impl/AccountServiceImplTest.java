@@ -3,6 +3,7 @@ package com.morris.aurum.services.impl;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.result.UpdateResult;
 import com.morris.aurum.TestHelper;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
@@ -14,6 +15,7 @@ import com.morris.aurum.repositories.AccountRepository;
 import com.morris.aurum.repositories.ClientRepository;
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.conversions.Bson;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -144,19 +146,37 @@ class AccountServiceImplTest {
                 () -> assertTrue(individualClient.getAccounts().contains(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_2))
         );
 
-        when(clientRepositoryMock.updateClientByClientId(individualClient.getClientId())).thenReturn(individualClient);
+        // we need to mock mongoTemplate processes for account array updates on client
+        MongoDatabase mongoDatabaseMock = Mockito.mock(MongoDatabase.class);
+        when(mongoTemplateMock.getDb()).thenReturn(mongoDatabaseMock);
+        when(mongoTemplateMock.getDb().withCodecRegistry(any(CodecRegistry.class))).thenReturn(mongoDatabaseMock);
+        MongoCollection<Document> mongoCollectionMock = Mockito.mock(MongoCollection.class);
+        when(mongoDatabaseMock.getCollection(any())).thenReturn(mongoCollectionMock);
+
+        // let's mock the update and results
+        UpdateResult updateResultMock = Mockito.mock(UpdateResult.class);
+        when(mongoCollectionMock.updateOne(any(Bson.class), any(Bson.class))).thenReturn(updateResultMock);
+        when(updateResultMock.wasAcknowledged()).thenReturn(true);
+
         when(accountRepositoryMock.deleteAccountByAccountNumber(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1)).thenReturn(1L);
 
-        boolean result = accountService.deleteAccount(individualClient, INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
+        boolean result = accountService.deleteAccount(individualClient.getClientId(), INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
         assertTrue(result);
     }
 
     @Test
-    void deleteAccount_NullClient_ReturnsFalse() {
-        Client nullClient = null;
-        boolean result = accountService.deleteAccount(nullClient, INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
-        assertFalse(result);
-        verifyNoInteractions(clientRepositoryMock, accountRepositoryMock);
+    void deleteAccount_NullClient_EmptyClient_ReturnsFalse() {
+        boolean result1 = accountService.deleteAccount(null, INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
+        boolean result2 = accountService.deleteAccount(CLIENT_1_CLIENT_ID, "");
+        boolean result3 = accountService.deleteAccount("", INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
+        boolean result4 = accountService.deleteAccount(CLIENT_1_CLIENT_ID, null);
+        assertAll(
+                () -> assertFalse(result1),
+                () -> assertFalse(result2),
+                () -> assertFalse(result3),
+                () -> assertFalse(result4),
+                () -> verifyNoInteractions(clientRepositoryMock, accountRepositoryMock)
+        );
     }
 
     @Test
@@ -171,12 +191,23 @@ class AccountServiceImplTest {
                 () -> assertTrue(individualClient.getAccounts().contains(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_2))
         );
 
-        when(clientRepositoryMock.updateClientByClientId(individualClient.getClientId())).thenReturn(individualClient);
+        // we need to mock mongoTemplate processes for account array updates on client
+        MongoDatabase mongoDatabaseMock = Mockito.mock(MongoDatabase.class);
+        when(mongoTemplateMock.getDb()).thenReturn(mongoDatabaseMock);
+        when(mongoTemplateMock.getDb().withCodecRegistry(any(CodecRegistry.class))).thenReturn(mongoDatabaseMock);
+        MongoCollection<Document> mongoCollectionMock = Mockito.mock(MongoCollection.class);
+        when(mongoDatabaseMock.getCollection(any())).thenReturn(mongoCollectionMock);
+
+        UpdateResult updateResultMock = Mockito.mock(UpdateResult.class);
+        when(mongoCollectionMock.updateOne(any(Bson.class), any(Bson.class))).thenReturn(updateResultMock);
+        when(updateResultMock.wasAcknowledged()).thenReturn(true);
+
         when(accountRepositoryMock.deleteAccountByAccountNumber(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1))
                 .thenThrow(new RuntimeException("Failed to delete account"));
 
-        boolean result = accountService.deleteAccount(individualClient, INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
+        boolean result = accountService.deleteAccount(individualClient.getClientId(), INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1);
         assertFalse(result);
+        assertThrows(RuntimeException.class, () -> accountRepositoryMock.deleteAccountByAccountNumber(INDIVIDUAL_CLIENT_ACCOUNT_NUMBER_1));
     }
 
     @Test

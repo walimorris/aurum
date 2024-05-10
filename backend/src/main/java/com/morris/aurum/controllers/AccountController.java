@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
 import com.morris.aurum.models.accounts.SavingAccount;
-import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.CorporateClient;
 import com.morris.aurum.models.clients.IndividualClient;
 import com.morris.aurum.services.AccountService;
@@ -62,8 +61,8 @@ public class AccountController {
     }
 
     @PostMapping("/deleteAccount")
-    public ResponseEntity<Boolean> deleteAccount(Client client, String accountNumber) {
-        boolean deletedAccountResult = accountService.deleteAccount(client, accountNumber);
+    public ResponseEntity<Boolean> deleteAccount(@RequestParam String clientId, @RequestParam String accountNumber) {
+        boolean deletedAccountResult = accountService.deleteAccount(clientId, accountNumber);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(deletedAccountResult);

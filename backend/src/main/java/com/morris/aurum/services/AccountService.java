@@ -7,7 +7,6 @@ import com.morris.aurum.models.accounts.SavingAccount;
 import com.morris.aurum.models.clients.Client;
 
 import java.util.List;
-import java.util.Map;
 
 public interface AccountService {
 
@@ -30,12 +29,12 @@ public interface AccountService {
     /**
      * Delete Account by client and account number.
      *
-     * @param client {@link Client}
+     * @param clientId {@link String}
      * @param accountNumber {@link String}
      *
      * @return {@link Account}
      */
-    boolean deleteAccount(Client client, String accountNumber);
+    boolean deleteAccount(String clientId, String accountNumber);
 
     /**
      * Get Account.

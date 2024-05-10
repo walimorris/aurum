@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.UnwindOptions;
+import com.mongodb.client.model.Updates;
+import com.mongodb.client.result.UpdateResult;
 import com.morris.aurum.models.accounts.Account;
 import com.morris.aurum.models.accounts.CheckingAccount;
 import com.morris.aurum.models.accounts.SavingAccount;
@@ -81,27 +83,34 @@ public class AccountServiceImpl implements AccountService {
 
     @Transactional
     @Override
-    public boolean deleteAccount(Client client, String accountNumber) {
-        if (client == null) {
+    public boolean deleteAccount(String clientId, String accountNumber) {
+        if (isNullOrEmpty(clientId) || isNullOrEmpty(accountNumber)) {
             return false;
         }
-        client.getAccounts().remove(accountNumber);
-        Client savedClient;
+
         long deletedAccount;
+        UpdateResult updateResult;
 
         try {
-            savedClient = clientRepository.updateClientByClientId(client.getClientId());
+            MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
+            MongoCollection<Document> clientCollection = db.getCollection(CLIENT_COLLECTION);
+
+            // filter and update account
+            Bson filter = eq("clientId", clientId);
+            Bson update = Updates.pull("accounts", accountNumber);
+            updateResult = clientCollection.updateOne(filter, update);
+
             deletedAccount = accountRepository.deleteAccountByAccountNumber(accountNumber);
         } catch (RuntimeException e) {
-            LOGGER.error("Error deleting account with account_number '{}': {}", accountNumber, e.getMessage());
+            LOGGER.error("Error deleting and update account with account_number '{}': {}", accountNumber, e.getMessage());
             return false;
         }
-        return savedClient != null && deletedAccount > 0;
+        return updateResult.wasAcknowledged()  && deletedAccount > 0;
     }
 
     @Override
     public Account getAccount(String accountNumber) {
-        if (accountNumber.isEmpty()) {
+        if (isNullOrEmpty(accountNumber)) {
             return null;
         }
         Account account;
@@ -119,9 +128,7 @@ public class AccountServiceImpl implements AccountService {
         MongoDatabase db = mongoTemplate.getDb().withCodecRegistry(codecRegistry);
         MongoCollection<Document> clientCollection = db.getCollection(CLIENT_COLLECTION);
 
-        /**
-         * TODO: Update to create a type reference to hold a list of Accounts
-         * Match: Filters the documents in the clients collection by clientId.
+        /* Match: Filters the documents in the clients collection by clientId.
          *
          * Lookup: Joins the filtered documents with the accounts collection
          * based on the accounts field in the client documents and the accountNumber
@@ -234,6 +241,10 @@ public class AccountServiceImpl implements AccountService {
         } else {
             return client.getAccounts().size() + 1;
         }
+    }
+
+    private boolean isNullOrEmpty(String value) {
+        return value == null || value.isEmpty();
     }
 
     private Client fetchClientWithAddress(Client client) {
