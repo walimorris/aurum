@@ -18,6 +18,7 @@ public class BankingUtil {
 
     private static final int HASH = 17;
     private static final int BITS = 0xfffffff;
+    private static final String TRANSACTION_PREFIX = "TR";
 
     private static CountryCodeCurrencyProperties countryCodeProperties;
 
@@ -41,6 +42,10 @@ public class BankingUtil {
         return String.valueOf(HASH * 31 + v.hashCode() & BITS);
     }
 
+    public static String generateTransactionHash(String v) {
+        return TRANSACTION_PREFIX + generateHashId(v);
+    }
+
     public static BsonDateTime now() {
         return new BsonDateTime(new Date().getTime());
     }
@@ -52,4 +57,9 @@ public class BankingUtil {
         }
         return countryCodeProperties.codes().get(client.getAddress().getCountryCode());
     }
+
+    public static boolean isNullOrEmpty(String value) {
+        return value == null || value.isEmpty();
+    }
+
 }

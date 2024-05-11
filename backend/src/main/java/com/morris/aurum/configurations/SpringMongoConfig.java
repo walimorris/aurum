@@ -12,7 +12,10 @@ import com.morris.aurum.models.cards.DebitCard;
 import com.morris.aurum.models.clients.Client;
 import com.morris.aurum.models.clients.CorporateClient;
 import com.morris.aurum.models.clients.IndividualClient;
+import com.morris.aurum.models.converters.DateToBsonDateTimeConverter;
+import com.morris.aurum.models.transactions.DepositTransaction;
 import com.morris.aurum.models.transactions.Transaction;
+import com.morris.aurum.models.transactions.WithdrawTransaction;
 import org.bson.codecs.BsonDateTimeCodec;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
@@ -25,6 +28,10 @@ import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper;
 import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
@@ -71,6 +78,7 @@ public class SpringMongoConfig {
                                 .register(Client.class, CorporateClient.class, IndividualClient.class,
                                         Account.class, Address.class, Contact.class, CheckingAccount.class,
                                         SavingAccount.class, DebitCard.class, Transaction.class,
+                                        DepositTransaction.class, WithdrawTransaction.class,
                                         BsonDateTimeCodec.class).build()
                 )
         );
@@ -86,5 +94,10 @@ public class SpringMongoConfig {
     @Bean
     MongoTransactionManager transactionManager(MongoDatabaseFactory databaseFactory) {
         return new MongoTransactionManager(databaseFactory);
+    }
+
+    @Bean
+    public MongoCustomConversions MongoCustomConversions() {
+        return new MongoCustomConversions(List.of(new DateToBsonDateTimeConverter()));
     }
 }

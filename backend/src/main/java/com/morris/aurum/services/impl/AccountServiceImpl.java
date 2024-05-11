@@ -84,7 +84,7 @@ public class AccountServiceImpl implements AccountService {
     @Transactional
     @Override
     public boolean deleteAccount(String clientId, String accountNumber) {
-        if (isNullOrEmpty(clientId) || isNullOrEmpty(accountNumber)) {
+        if (BankingUtil.isNullOrEmpty(clientId) || BankingUtil.isNullOrEmpty(accountNumber)) {
             return false;
         }
 
@@ -110,7 +110,7 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public Account getAccount(String accountNumber) {
-        if (isNullOrEmpty(accountNumber)) {
+        if (BankingUtil.isNullOrEmpty(accountNumber)) {
             return null;
         }
         Account account;
@@ -241,10 +241,6 @@ public class AccountServiceImpl implements AccountService {
         } else {
             return client.getAccounts().size() + 1;
         }
-    }
-
-    private boolean isNullOrEmpty(String value) {
-        return value == null || value.isEmpty();
     }
 
     private Client fetchClientWithAddress(Client client) {

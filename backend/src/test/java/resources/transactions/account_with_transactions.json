@@ -1,0 +1,59 @@
+{
+  "_id": "662b184b18c85d3f44653dd8",
+  "debitCards":[],
+  "currencyType":"USD",
+  "balance": "3512.13",
+  "accountType":"CHECKING",
+  "accountNumber":"226987650",
+  "routingNumber":"223332111",
+  "activeType":"ACTIVE",
+  "transactions":[
+    {
+      "_id": "663ea5a11569992c946a7b0e",
+      "creationDate":{
+        "$date":{
+          "$numberLong":"1715381665486"
+        }
+      },
+      "currencyType":"USD",
+      "depositAmount": "2500.34",
+      "endingBalance": "2500.34",
+      "toAccount":"226987650",
+      "transactionId":"TR211300090",
+      "transactionType":"DEPOSIT"
+    },
+    {
+      "_id": "663ea5aa1569992c946a7b0f",
+      "creationDate":{
+        "$date":{
+          "$numberLong":"1715381674727"
+        }
+      },
+      "currencyType":"USD",
+      "depositAmount":"600.58",
+      "endingBalance":"3100.92",
+      "toAccount":"226987650",
+      "transactionId":"TR239089358",
+      "transactionType":"DEPOSIT"
+    },
+    {
+      "_id": "663ea5b61569992c946a7b10",
+      "creationDate":{
+        "$date":{
+          "$numberLong":"1715381686312"
+        }
+      },
+      "currencyType":"USD",
+      "depositAmount": "411.21",
+      "endingBalance":"3512.13",
+      "toAccount":"226987650",
+      "transactionId":"TR1009815",
+      "transactionType":"DEPOSIT"
+    }
+  ],
+  "creationDate":{
+    "$date":{
+      "$numberLong":"1714100299306"
+    }
+  }
+}
